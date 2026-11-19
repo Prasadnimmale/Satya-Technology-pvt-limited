@@ -19,9 +19,9 @@ export default function HeroSection() {
       {/* Animated Orbital Satellite & Earth Video-Motion Background */}
       <HeroAnimatedBackground />
 
-      {/* Unobstructed Mobile/Tablet Orbital Sky Stage so the Satellite & Scan Beam Shine Clearly Above Copy */}
+      {/* Unobstructed Mobile/Tablet Orbital Sky + Golden Sunrise Stage so Satellite, Sunlight & Earth Horizon Shine Clearly Above Copy */}
       <div
-        className="h-[190px] sm:h-[225px] lg:hidden w-full flex-shrink-0 pointer-events-none"
+        className="h-[232px] sm:h-[268px] lg:hidden w-full flex-shrink-0 pointer-events-none"
         aria-hidden="true"
       />
 
