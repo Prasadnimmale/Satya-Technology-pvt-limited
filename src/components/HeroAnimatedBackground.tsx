@@ -15,7 +15,7 @@ void main() {
 }
 `;
 
-// Real-time 60fps 3D Spherical Earth Slow-Motion Rotation + Animated Golden Sunlight Rays Shader
+// Real-time 60fps 3D Spherical Earth Slow-Motion Rotation Shader (Sunlight kept 100% static & soft)
 const FRAGMENT_SHADER = `
 precision highp float;
 
@@ -23,6 +23,7 @@ varying vec2 v_uv;
 uniform sampler2D u_tex;
 uniform vec2 u_res;
 uniform float u_time;
+uniform float u_mobile;
 
 const float IMG_ASPECT = 1920.0 / 1080.0;
 
@@ -32,15 +33,14 @@ vec3 rotateAxis(vec3 v, vec3 axis, float ang) {
   return v * c + cross(axis, v) * s + axis * dot(axis, v) * (1.0 - c);
 }
 
-// Compute raw (unclamped) image UV so portrait mobile frames BOTH the Left Golden Sunrise (u=0.09) AND India (u=0.36)!
+// Compute raw image UV matching Tailwind's lg (<1024px) mobile/tablet mode vs desktop mode
 vec2 screenToRawImageUV(vec2 suv) {
   float screenAspect = u_res.x / max(1.0, u_res.y);
-  if (screenAspect < 1.0) {
-    // Portrait / Mobile: show u in [0.015 .. 0.615] (spanU = 0.60) so Sunrise (0.09) + Arabia + India (0.36) ALL fit cleanly!
-    float spanU = clamp(screenAspect / IMG_ASPECT, 0.60, 1.0);
+  if (u_mobile > 0.5) {
+    // Mobile & Tablet (<1024px): show u in [0.045 .. 0.645] so Left Soft Horizon Glow + Centered India BOTH align cleanly!
+    float spanU = 0.60;
     float spanV = spanU * IMG_ASPECT / screenAspect;
-    float ux = suv.x * spanU + 0.015;
-    // Anchor Golden Sunrise & Earth horizon (v = 0.385) right at suv.y = 0.285 (below mobile satellite, above hero text!)
+    float ux = suv.x * spanU + 0.045;
     float uy = (suv.y - 0.285) * spanV + 0.385;
     return vec2(ux, uy);
   }
@@ -108,9 +108,9 @@ void main() {
   vec3 colB = sampleRotatedEarth(rawUV, thetaB);
   vec3 color = colA * wA + colB * wB;
 
-  // On portrait mobile where rawUV.y < 0 (sky above image) or rawUV.y > 1 (below Earth), blend seamlessly without edge streaks!
-  if (rawUV.y < 0.06) {
-    float topBlend = smoothstep(-0.04, 0.06, rawUV.y);
+  // Seamless blend above/below image bounds on mobile viewports (zero horizontal edge seams!)
+  if (rawUV.y < 0.08) {
+    float topBlend = smoothstep(-0.04, 0.08, rawUV.y);
     vec3 deepSpace = vec3(0.012, 0.032, 0.075);
     color = mix(deepSpace, color, topBlend);
   }
@@ -122,13 +122,13 @@ void main() {
 
   // Sunlight is kept 100% static and soft (no animated sunbeams or pulsing glare)
 
-  // Subtle cyan atmospheric rim along the curved Earth limb (rn ~ 0.996)
+  // Subtle cyan atmospheric rim along the curved Earth limb
   vec2 P = vec2(rawUV.x * IMG_ASPECT, rawUV.y);
   vec2 C = vec2(0.0053, 2.9946);
   float rn = length(P - C) / 2.6440;
   float rim = exp(-pow((rn - 0.996) * 68.0, 2.0));
   float rimWave = 0.5 + 0.5 * sin(u_time * 1.5 + rawUV.x * 7.5);
-  color += vec3(0.42, 0.84, 1.0) * rim * 0.15 * rimWave;
+  color += vec3(0.42, 0.84, 1.0) * rim * 0.14 * rimWave;
 
   gl_FragColor = vec4(clamp(color, 0.0, 1.0), 1.0);
 }
@@ -181,6 +181,7 @@ export default function HeroAnimatedBackground() {
     let glProgram: WebGLProgram | null = null;
     let uResLoc: WebGLUniformLocation | null = null;
     let uTimeLoc: WebGLUniformLocation | null = null;
+    let uMobileLoc: WebGLUniformLocation | null = null;
     let glTexture: WebGLTexture | null = null;
     let animStartTime = 0;
 
@@ -222,6 +223,7 @@ export default function HeroAnimatedBackground() {
 
             uResLoc = gl.getUniformLocation(prog, "u_res");
             uTimeLoc = gl.getUniformLocation(prog, "u_time");
+            uMobileLoc = gl.getUniformLocation(prog, "u_mobile");
           }
         }
       }
@@ -297,15 +299,20 @@ export default function HeroAnimatedBackground() {
 
     resize();
     window.addEventListener("resize", resize, { passive: true });
+    const resizeObserver =
+      typeof ResizeObserver !== "undefined"
+        ? new ResizeObserver(() => resize())
+        : null;
+    resizeObserver?.observe(overlayCanvas);
 
     // Convert normalized image UV in 1920x1080 space to exact screen pixel (matching shader's screenToRawImageUV!)
-    const imageUVToScreen = (iu: number, iv: number) => {
+    const imageUVToScreen = (iu: number, iv: number, mobileMode: boolean) => {
       const imgAspect = 1920 / 1080;
       const screenAspect = width / height;
-      if (screenAspect < 1.0) {
-        const spanU = Math.max(0.6, Math.min(1.0, screenAspect / imgAspect));
+      if (mobileMode) {
+        const spanU = 0.6;
         const spanV = (spanU * imgAspect) / screenAspect;
-        const su = (iu - 0.015) / spanU;
+        const su = (iu - 0.045) / spanU;
         const sv = (iv - 0.385) / spanV + 0.285;
         return {
           x: su * width,
@@ -335,25 +342,28 @@ export default function HeroAnimatedBackground() {
         return;
       }
 
+      // Match Tailwind's exact `lg:` (1024px) breakpoint so DevTools mobile/tablet viewports ALWAYS get straight vertical beam!
+      const isMobile = width < 1024;
       const t = reducedMotion
         ? 0
         : Math.max(0, (now - animStartTime) * 0.001);
 
-      // 1. Render 3D Slow-Motion Rotating Earth + Blazing Golden Sunlight Rays in WebGL
+      // 1. Render 3D Slow-Motion Rotating Earth in WebGL
       if (gl && glProgram && glTexture) {
         gl.useProgram(glProgram);
         gl.uniform2f(uResLoc, glCanvas.width, glCanvas.height);
         gl.uniform1f(uTimeLoc, t);
+        gl.uniform1f(uMobileLoc, isMobile ? 1.0 : 0.0);
         gl.drawArrays(gl.TRIANGLES, 0, 6);
       }
 
-      // 2. Render Twinkling Stars, Parabolic Dish Scan Beam onto India, & Floating Orbital Spacecraft
+      // 2. Render Twinkling Stars, Scan Beam, & Floating Orbital Spacecraft
       if (ctx2d) {
         ctx2d.clearRect(0, 0, width, height);
 
         if (!gl || !glProgram) {
-          const topL = imageUVToScreen(0, 0);
-          const botR = imageUVToScreen(1, 1);
+          const topL = imageUVToScreen(0, 0, isMobile);
+          const botR = imageUVToScreen(1, 1, isMobile);
           ctx2d.drawImage(
             earthImg,
             topL.x,
@@ -363,15 +373,13 @@ export default function HeroAnimatedBackground() {
           );
         }
 
-        const isMobilePortrait = width / height < 1.0;
-
         // Subtle twinkling cosmic stars in the upper space sky (outside Earth's curved limb)
         for (const st of twinkleStars) {
           const px = st.u * (1920 / 1080);
           const py = st.v;
           const distToEarth = Math.hypot(px - 0.0053, py - 2.9946) / 2.644;
           if (distToEarth < 1.02) continue;
-          const pos = imageUVToScreen(st.u, st.v);
+          const pos = imageUVToScreen(st.u, st.v, isMobile);
           if (pos.x < 0 || pos.x > width || pos.y < 0 || pos.y > height * 0.5)
             continue;
           const alpha =
@@ -384,23 +392,23 @@ export default function HeroAnimatedBackground() {
           ctx2d.fill();
         }
 
-        // Orbital trajectory arc curving behind the spacecraft
-        const o1 = isMobilePortrait
-          ? { x: width * 0.04, y: width < 640 ? 105 : 118 }
-          : imageUVToScreen(0.18, 0.04);
-        const oc = isMobilePortrait
-          ? { x: width * 0.56, y: width < 640 ? 156 : 176 }
-          : imageUVToScreen(0.60, 0.30);
-        const o2 = isMobilePortrait
-          ? { x: width * 0.98, y: width < 640 ? 236 : 268 }
-          : imageUVToScreen(0.99, 0.68);
+        // Orbital trajectory arc behind the spacecraft (100% level & symmetric on mobile!)
+        const o1 = isMobile
+          ? { x: width * 0.02, y: width < 640 ? 154 : 178 }
+          : imageUVToScreen(0.18, 0.04, false);
+        const oc = isMobile
+          ? { x: width * 0.50, y: width < 640 ? 138 : 160 }
+          : imageUVToScreen(0.60, 0.30, false);
+        const o2 = isMobile
+          ? { x: width * 0.98, y: width < 640 ? 154 : 178 }
+          : imageUVToScreen(0.99, 0.68, false);
 
         ctx2d.save();
         ctx2d.beginPath();
         ctx2d.moveTo(o1.x, o1.y);
         ctx2d.quadraticCurveTo(oc.x, oc.y, o2.x, o2.y);
-        ctx2d.strokeStyle = isMobilePortrait
-          ? "rgba(169, 220, 235, 0.34)"
+        ctx2d.strokeStyle = isMobile
+          ? "rgba(169, 220, 235, 0.32)"
           : "rgba(169, 220, 235, 0.22)";
         ctx2d.lineWidth = 1.25;
         ctx2d.setLineDash([6, 10]);
@@ -408,33 +416,35 @@ export default function HeroAnimatedBackground() {
         ctx2d.stroke();
         ctx2d.restore();
 
-        // Spacecraft slow-motion orbital glide (all Math.sin so at t = 0 offset is 0.0)
-        const satOrbitX = Math.sin(t * 0.42) * (isMobilePortrait ? 8 : 24);
-        const satOrbitY = Math.sin(t * 0.31) * (isMobilePortrait ? 5 : 14);
-        const satRoll = Math.sin(t * 0.34) * 0.035;
-        const satBreath = 1.0 + 0.028 * Math.sin(t * 0.27);
+        // Exact -0.2926 rad (-16.76 deg) levels both solar wings to 0.0 deg horizontal on mobile!
+        const satOrbitX = Math.sin(t * 0.42) * (isMobile ? 4 : 24);
+        const satOrbitY = Math.sin(t * 0.31) * (isMobile ? 5 : 14);
+        const satRoll = isMobile
+          ? -0.2926 + Math.sin(t * 0.34) * 0.015
+          : Math.sin(t * 0.34) * 0.035;
+        const satBreath = 1.0 + 0.026 * Math.sin(t * 0.27);
 
-        // Satellite geometric center (0.600, 0.3185) & parabolic dish feedhorn tip (0.556, 0.494) in 1920x1080 space
-        const desktopSatPivot = imageUVToScreen(0.600, 0.3185);
-        // On mobile portrait: place satellite slightly right-of-center (x=57%, y=158px) so LEFT GOLDEN SUNRISE (x=12.5%, y=28.5%) & Satellite BOTH shine unobstructed!
+        const desktopSatPivot = imageUVToScreen(0.600, 0.3185, false);
         const mobileTargetWingSpan =
           width < 640
-            ? Math.min(width * 0.78, 325)
-            : Math.min(width * 0.62, 460);
-        const renderScale = isMobilePortrait
+            ? Math.min(width * 0.80, 325)
+            : Math.min(width * 0.60, 440);
+        const renderScale = isMobile
           ? (mobileTargetWingSpan / 1353) * satBreath
           : desktopSatPivot.pxScale * satBreath;
 
-        const satCenterX = isMobilePortrait
-          ? width * 0.56 + satOrbitX
+        const satCenterX = isMobile
+          ? width * 0.50 + satOrbitX
           : desktopSatPivot.x + satOrbitX;
-        const satCenterY = isMobilePortrait
-          ? (width < 640 ? 158 : 182) + satOrbitY
+        const satCenterY = isMobile
+          ? (width < 640 ? 148 : 172) + satOrbitY
           : desktopSatPivot.y + satOrbitY;
 
-        // Exact rotated & translated parabolic dish feedhorn screen position
-        const srcNozzleDX = (0.556 - 0.600) * 1920;
-        const srcNozzleDY = (0.494 - 0.3185) * 1080;
+        // Beam origin: on mobile, dead-center bottom of the white dish (0.586, 0.472) so beam emerges 100% centered & straight down!
+        const dishOriginU = isMobile ? 0.586 : 0.556;
+        const dishOriginV = isMobile ? 0.472 : 0.494;
+        const srcNozzleDX = (dishOriginU - 0.600) * 1920;
+        const srcNozzleDY = (dishOriginV - 0.3185) * 1080;
         const ndx = srcNozzleDX * renderScale;
         const ndy = srcNozzleDY * renderScale;
         const cosR = Math.cos(satRoll);
@@ -442,24 +452,35 @@ export default function HeroAnimatedBackground() {
         const nozzleX = satCenterX + ndx * cosR - ndy * sinR;
         const nozzleY = satCenterY + ndx * sinR + ndy * cosR;
 
-        // Target scan footprint sweeping right across India (u ~ 0.355, v ~ 0.71) in BOTH Desktop & Mobile!
+        // On mobile: target.x === nozzleX STRICTLY -> 90.0 deg laser-straight vertical light beam!
         const sweepU = 0.355 + 0.048 * Math.sin(t * 0.44);
         const sweepV = 0.715 + 0.036 * Math.sin(t * 0.33);
-        const target = imageUVToScreen(sweepU, sweepV);
-        const sFactor = isMobilePortrait
-          ? Math.max(0.5, renderScale * 1.85)
+        const target = isMobile
+          ? {
+              x: nozzleX,
+              y: nozzleY + (width < 640 ? 168 : 205),
+            }
+          : imageUVToScreen(sweepU, sweepV, false);
+        const sFactor = isMobile
+          ? Math.max(0.52, renderScale * 1.9)
           : desktopSatPivot.pxScale;
 
-        // Volumetric Multi-Spectral Scan Cone projecting from Parabolic Dish onto India
+        // Volumetric Multi-Spectral Scan Cone (strictly vertical & level horizontal base on mobile!)
         const coneAngle =
           Math.atan2(target.y - nozzleY, target.x - nozzleX) + Math.PI / 2;
-        const footprintRadius = 78 * sFactor;
-        const leftFootX = target.x + Math.cos(coneAngle) * footprintRadius;
-        const leftFootY =
-          target.y + Math.sin(coneAngle) * footprintRadius * 0.52;
-        const rightFootX = target.x - Math.cos(coneAngle) * footprintRadius;
-        const rightFootY =
-          target.y - Math.sin(coneAngle) * footprintRadius * 0.52;
+        const footprintRadius = (isMobile ? 64 : 78) * sFactor;
+        const leftFootX = isMobile
+          ? target.x - footprintRadius
+          : target.x + Math.cos(coneAngle) * footprintRadius;
+        const leftFootY = isMobile
+          ? target.y
+          : target.y + Math.sin(coneAngle) * footprintRadius * 0.52;
+        const rightFootX = isMobile
+          ? target.x + footprintRadius
+          : target.x - Math.cos(coneAngle) * footprintRadius;
+        const rightFootY = isMobile
+          ? target.y
+          : target.y - Math.sin(coneAngle) * footprintRadius * 0.52;
 
         const coneGrad = ctx2d.createLinearGradient(
           nozzleX,
@@ -467,8 +488,8 @@ export default function HeroAnimatedBackground() {
           target.x,
           target.y
         );
-        coneGrad.addColorStop(0, "rgba(169, 220, 235, 0.52)");
-        coneGrad.addColorStop(0.45, "rgba(28, 110, 156, 0.22)");
+        coneGrad.addColorStop(0, "rgba(169, 220, 235, 0.55)");
+        coneGrad.addColorStop(0.48, "rgba(28, 110, 156, 0.24)");
         coneGrad.addColorStop(0.85, "rgba(216, 198, 75, 0.14)");
         coneGrad.addColorStop(1, "rgba(216, 198, 75, 0.02)");
 
@@ -480,13 +501,13 @@ export default function HeroAnimatedBackground() {
         ctx2d.fillStyle = coneGrad;
         ctx2d.fill();
 
-        // Center telemetry beam + descending golden/cyan data pulses
+        // Center telemetry beam + descending golden/cyan data pulses (strictly vertical on mobile!)
         ctx2d.save();
         ctx2d.beginPath();
         ctx2d.moveTo(nozzleX, nozzleY);
         ctx2d.lineTo(target.x, target.y);
-        ctx2d.strokeStyle = "rgba(169, 220, 235, 0.45)";
-        ctx2d.lineWidth = 1.3;
+        ctx2d.strokeStyle = "rgba(169, 220, 235, 0.48)";
+        ctx2d.lineWidth = 1.4;
         ctx2d.setLineDash([5, 8]);
         ctx2d.lineDashOffset = -t * 44;
         ctx2d.stroke();
@@ -505,16 +526,16 @@ export default function HeroAnimatedBackground() {
           ctx2d.fill();
         }
 
-        // Expanding concentric radar scan ellipses rippling over India on Earth's surface
+        // Expanding concentric radar scan ellipses (0 deg level horizontal on mobile!)
         for (let ring = 0; ring < 3; ring++) {
           const rp = (t * 0.38 + ring / 3) % 1;
-          const rx = (16 + rp * 76) * sFactor;
-          const ry = rx * 0.48;
+          const rx = (16 + rp * 74) * sFactor;
+          const ry = rx * 0.45;
           const alpha = (1 - rp) * 0.62;
 
           ctx2d.save();
           ctx2d.translate(target.x, target.y);
-          ctx2d.rotate(-0.2);
+          ctx2d.rotate(isMobile ? 0 : -0.2);
           ctx2d.beginPath();
           ctx2d.ellipse(0, 0, rx, ry, 0, 0, Math.PI * 2);
           ctx2d.strokeStyle =
@@ -540,26 +561,28 @@ export default function HeroAnimatedBackground() {
         ctx2d.scale(renderScale * scaleRatioX, renderScale * scaleRatioY);
 
         ctx2d.shadowColor = "rgba(3, 12, 30, 0.72)";
-        ctx2d.shadowBlur = isMobilePortrait ? 14 : 20;
+        ctx2d.shadowBlur = isMobile ? 14 : 20;
         ctx2d.drawImage(satImg, -srcPivotX, -srcPivotY, natW, natH);
         ctx2d.restore();
 
-        // Subtle sensor feedhorn glow right at the parabolic dish tip
-        const lensGlow = ctx2d.createRadialGradient(
-          nozzleX,
-          nozzleY,
-          0,
-          nozzleX,
-          nozzleY,
-          15 * sFactor
-        );
-        lensGlow.addColorStop(0, "rgba(255, 255, 255, 0.92)");
-        lensGlow.addColorStop(0.38, "rgba(169, 220, 235, 0.55)");
-        lensGlow.addColorStop(1, "rgba(169, 220, 235, 0)");
-        ctx2d.fillStyle = lensGlow;
-        ctx2d.beginPath();
-        ctx2d.arc(nozzleX, nozzleY, 15 * sFactor, 0, Math.PI * 2);
-        ctx2d.fill();
+        // Subtle sensor feedhorn glow on desktop (on mobile, beam already emerges cleanly from behind dish rim)
+        if (!isMobile) {
+          const lensGlow = ctx2d.createRadialGradient(
+            nozzleX,
+            nozzleY,
+            0,
+            nozzleX,
+            nozzleY,
+            15 * sFactor
+          );
+          lensGlow.addColorStop(0, "rgba(255, 255, 255, 0.92)");
+          lensGlow.addColorStop(0.38, "rgba(169, 220, 235, 0.55)");
+          lensGlow.addColorStop(1, "rgba(169, 220, 235, 0)");
+          ctx2d.fillStyle = lensGlow;
+          ctx2d.beginPath();
+          ctx2d.arc(nozzleX, nozzleY, 15 * sFactor, 0, Math.PI * 2);
+          ctx2d.fill();
+        }
       }
 
       if (!reducedMotion) {
@@ -572,6 +595,7 @@ export default function HeroAnimatedBackground() {
     return () => {
       window.cancelAnimationFrame(rafId);
       window.removeEventListener("resize", resize);
+      resizeObserver?.disconnect();
     };
   }, []);
 
@@ -580,7 +604,7 @@ export default function HeroAnimatedBackground() {
       className="absolute inset-0 z-0 overflow-hidden bg-[#030A18] bg-cover bg-center select-none pointer-events-none"
       style={{ backgroundImage: `url("${INSTANT_BLUR_DATA_URL}")` }}
     >
-      {/* Layer 0 (0ms Instant SSR Paint Together With Navbar — Matches Both Desktop & Mobile Soft Horizon+Satellite!) */}
+      {/* Layer 0 (0ms Instant SSR Paint Together With Navbar) */}
       <div className="absolute inset-0">
         {/* Desktop SSR Full Scene */}
         {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -593,7 +617,7 @@ export default function HeroAnimatedBackground() {
           className="hidden lg:block w-full h-full object-cover object-[46%_46%]"
         />
 
-        {/* Mobile/Tablet SSR Earth */}
+        {/* Mobile/Tablet SSR Earth + Level Horizontal Satellite */}
         <div className="lg:hidden absolute inset-0 bg-gradient-to-b from-[#030916] via-[#041126] to-[#0B2852]">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
@@ -602,8 +626,9 @@ export default function HeroAnimatedBackground() {
             fetchPriority="high"
             loading="eager"
             decoding="sync"
-            className="absolute top-[148px] sm:top-[168px] -left-[2.5%] w-[166.7%] max-w-none h-auto"
+            className="absolute top-[152px] sm:top-[172px] -left-[7.5%] w-[166.7%] max-w-none h-auto"
           />
+          <div className="absolute inset-x-0 top-[148px] sm:top-[168px] h-14 bg-gradient-to-b from-[#030916] to-transparent" />
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src="/images/hero-v2-satellite.webp"
@@ -611,12 +636,12 @@ export default function HeroAnimatedBackground() {
             fetchPriority="high"
             loading="eager"
             decoding="sync"
-            className="absolute top-[74px] sm:top-[84px] left-[56%] -translate-x-1/2 w-[82vw] max-w-[440px] h-auto object-contain"
+            className="absolute top-[74px] sm:top-[84px] left-1/2 -translate-x-1/2 -rotate-[16.8deg] w-[80vw] max-w-[430px] h-auto object-contain"
           />
         </div>
       </div>
 
-      {/* Layer 1: 60fps WebGL 3D Slow-Motion Rotating Earth + Blazing Golden Sunlight Rays */}
+      {/* Layer 1: 60fps WebGL 3D Slow-Motion Rotating Earth */}
       <canvas
         ref={glCanvasRef}
         className={`absolute inset-0 w-full h-full block transition-opacity duration-300 ${
@@ -625,7 +650,7 @@ export default function HeroAnimatedBackground() {
         aria-hidden="true"
       />
 
-      {/* Layer 2: Floating Orbital Spacecraft + India-Targeted Parabolic Telemetry Beam */}
+      {/* Layer 2: Floating Orbital Spacecraft + Straight Scan Beam */}
       <canvas
         ref={overlayCanvasRef}
         className={`absolute inset-0 w-full h-full block transition-opacity duration-300 ${
@@ -634,7 +659,7 @@ export default function HeroAnimatedBackground() {
         aria-hidden="true"
       />
 
-      {/* Desktop Readability Scrim: Leaves Left Golden Sunrise (9%, 38.5%) & Right Spacecraft 100% Bright! */}
+      {/* Desktop Readability Scrim */}
       <div
         className="hidden lg:block absolute inset-0"
         style={{
@@ -643,12 +668,12 @@ export default function HeroAnimatedBackground() {
         }}
       />
 
-      {/* Mobile/Tablet Readability Scrim: Leaves BOTH Top Satellite (y=158px) & Left Golden Sunrise (y~285px) 100% Clear & Bright! */}
+      {/* Mobile/Tablet Readability Scrim */}
       <div
         className="lg:hidden absolute inset-0"
         style={{
           background:
-            "linear-gradient(180deg, rgba(4, 17, 38, 0.18) 0px, rgba(4, 17, 38, 0.0) 90px, rgba(4, 17, 38, 0.0) 318px, rgba(6, 22, 48, 0.58) 385px, rgba(7, 27, 56, 0.62) 78%, rgba(11, 40, 82, 0.94) 100%)",
+            "linear-gradient(180deg, rgba(4, 17, 38, 0.18) 0px, rgba(4, 17, 38, 0.0) 90px, rgba(4, 17, 38, 0.0) 325px, rgba(6, 22, 48, 0.58) 390px, rgba(7, 27, 56, 0.62) 78%, rgba(11, 40, 82, 0.94) 100%)",
         }}
       />
 
