@@ -4,7 +4,7 @@ import React, { useEffect, useRef, useState } from "react";
 
 // Tiny 40x23 inline base64 backdrop so frame 0 (0.0ms) is never blank
 const INSTANT_BLUR_DATA_URL =
-  "data:image/webp;base64,UklGRtoBAABXRUJQVlA4IM4BAACQCACdASooABcAPp0+nEkloyMhMBVaqLATiWYAsR8ED4s1qJzTQSr7yH6gBFXO0KPiv+gD5VtxYl15CXi5ERNVxsTWfo3/t6OOtLADAAD+/Q17bIpaAWk/RpsJi6OMu3tQb1/V/oNMcVqS5qgjbOcmi+oeLb/DGwLYEXeMJy7wnG+Vu7zQp5ZwqfDju9qLtoxnPmGGfdlGesBoezE+U+BXbr/ZR8ELsQdKUCfPZRn6WB/N3TMlm81KlDMvPO1KquAN1xyCGMza64Gya+74oR6YsF4+vbcTeQWRfRPpAcwK8ywm0Yk7vZQ6lYix2joA+GBoFKPQbaf7+34JLq6Xnl4aYLwpy979ji/MVKrO9m/A5KeA+U4fhUTqVV+CQuYa586griK5HV8n52vNENuZRXAbvPqYDlpcmXNWByCu1uEnjblT2+NwpYo/KfQ9vBJjEDcsrfdO4n8cWJ+0gC5J7YsxME5zSEsUOfuWRSB/sa5if7Dvx3eNKj9NmVE3YAo0sQ0ySuActVVrBGmc1IrjXTLwzHVoSi0sJ1RN8iYTdCkStBBC9DpfEiiCUD8mN+FiMih8XuZz2Jw0o/c/4NbUp3mKEhu7iiM/4Xf+TTAAAAA=";
+  "data:image/webp;base64,UklGRrwBAABXRUJQVlA4ILABAADQCACdASooABcAPp1CnUmlo6MhJWzIsBOJZACxH3YOHwEpXNNs+P1uYyXnw34Hp2BY6pOlj6pSPSkXrTMabz43r5+I8I/M088n5p6tSqTwAP79EAAYXT81EUe3+0m5bR3Juz0OPXubSqgr85b64Zc3a6MuWIj1ceUErzRIt5hR6DcKgt8fud31YW/PWeIxK7gIyP+3P0oj7LT0XzSk1p74Bg9ux43zpFq0Br8kZfJbYsgy/S5KICQEirsdkPxUGQe8VgaNqBX5331s6T0u7ASbhB3/2FewCdjVXZYjlTX3NycrxbpiNeZ5yDNIlH/OeWe0tVrk++mW/LIbZFzRVkYJVTCdiNvHVJyOvW5qMFDT06epFAJ+ZVONDx+TvwryWXd2m5XiYrOt3KRXqzlrfHPBjzsCw4WKei9arpTp8Yb4TLxUo3n8W+ADHCjrNpYTgyeHNccyv6HYDBdX3JeFBi8EZvXfmD/fjBdqI2gRjbj2y4kpH6c/KXAQH2nAWR8lvRJ583YWo7kxB3AN7Xf/5Opgq3TVwUw4bsgdRqIa9p+W/wYzWNMVa4nXJvj9/kyaAAA=";
 
 const VERTEX_SHADER = `
 attribute vec2 a_pos;
@@ -120,26 +120,9 @@ void main() {
     color = mix(color, brandNavy, botBlend);
   }
 
-  // Animated Blazing Golden Sunlight Core + Shimmering Diffraction Sun-Rays at exact horizon sun (0.090, 0.385)!
-  vec2 sunDelta = vec2((rawUV.x - 0.090) * IMG_ASPECT, rawUV.y - 0.385);
-  float sunDist = length(sunDelta);
-  float angle = atan(sunDelta.y, sunDelta.x);
+  // Sunlight is kept 100% static and soft (no animated sunbeams or pulsing glare)
 
-  // Multi-harmonic slowly rotating golden sunbeams
-  float rays1 = pow(0.5 + 0.5 * cos(angle * 8.0 - u_time * 0.35), 6.0);
-  float rays2 = pow(0.5 + 0.5 * cos(angle * 14.0 + u_time * 0.28), 8.0);
-  float anamorphicStreak = exp(-abs(sunDelta.y) * 28.0) * exp(-abs(sunDelta.x) * 3.2);
-
-  float sunPulse = 0.88 + 0.18 * sin(u_time * 1.45);
-  float coreGlow = exp(-sunDist * 9.5) * 0.42 * sunPulse;
-  float wideCorona = exp(-sunDist * 3.4) * 0.22 * sunPulse;
-  float rayGlow = (rays1 * 0.22 + rays2 * 0.14) * exp(-sunDist * 4.2) * sunPulse;
-
-  color += vec3(1.0, 0.95, 0.78) * coreGlow;
-  color += vec3(1.0, 0.82, 0.38) * (wideCorona + rayGlow);
-  color += vec3(0.75, 0.92, 1.0) * anamorphicStreak * 0.28 * sunPulse;
-
-  // Shimmering cyan atmospheric rim glow along the curved Earth limb (rn ~ 0.996)
+  // Subtle cyan atmospheric rim along the curved Earth limb (rn ~ 0.996)
   vec2 P = vec2(rawUV.x * IMG_ASPECT, rawUV.y);
   vec2 C = vec2(0.0053, 2.9946);
   float rn = length(P - C) / 2.6440;
@@ -187,7 +170,7 @@ export default function HeroAnimatedBackground() {
 
     const earthImg = new window.Image();
     earthImg.decoding = "async";
-    earthImg.src = "/images/hero-v2-earth.webp";
+    earthImg.src = "/images/hero-v2-earth.webp?v=2";
 
     const satImg = new window.Image();
     satImg.decoding = "async";
@@ -597,12 +580,12 @@ export default function HeroAnimatedBackground() {
       className="absolute inset-0 z-0 overflow-hidden bg-[#030A18] bg-cover bg-center select-none pointer-events-none"
       style={{ backgroundImage: `url("${INSTANT_BLUR_DATA_URL}")` }}
     >
-      {/* Layer 0 (0ms Instant SSR Paint Together With Navbar — Matches Both Desktop & Mobile Sunrise+Satellite!) */}
+      {/* Layer 0 (0ms Instant SSR Paint Together With Navbar — Matches Both Desktop & Mobile Soft Horizon+Satellite!) */}
       <div className="absolute inset-0">
         {/* Desktop SSR Full Scene */}
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
-          src="/images/hero-v2-poster.webp"
+          src="/images/hero-v2-poster.webp?v=2"
           alt=""
           fetchPriority="high"
           loading="eager"
@@ -610,11 +593,11 @@ export default function HeroAnimatedBackground() {
           className="hidden lg:block w-full h-full object-cover object-[46%_46%]"
         />
 
-        {/* Mobile/Tablet SSR Earth (Exact [0.015..0.615] Framing so Left Golden Sunrise + India Both Appear at 0ms!) */}
+        {/* Mobile/Tablet SSR Earth */}
         <div className="lg:hidden absolute inset-0 bg-gradient-to-b from-[#030916] via-[#041126] to-[#0B2852]">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
-            src="/images/hero-v2-earth.webp"
+            src="/images/hero-v2-earth.webp?v=2"
             alt=""
             fetchPriority="high"
             loading="eager"
