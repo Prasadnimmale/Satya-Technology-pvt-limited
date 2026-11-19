@@ -1,0 +1,266 @@
+@import url("https://fonts.googleapis.com/css2?family=Google+Sans:ital,opsz,wght@0,17..18,400..700;1,17..18,400..700&display=swap");
+@import "tailwindcss";
+
+:root {
+  --bg-primary: #0B2852;
+  --bg-deep: #071B38;
+  --bg-secondary: #123D70;
+  --accent-blue: #1C6E9C;
+  --highlight-gold: #D8C64B;
+  --text-primary: #FFFFFF;
+  --text-secondary: #D4E0EF;
+  --accent-light: #A9DCEB;
+}
+
+@theme inline {
+  --color-navy-950: #061833;
+  --color-navy-900: #0B2852;
+  --color-ocean-800: #123D70;
+  --color-cerulean-600: #1C6E9C;
+  --color-gold-400: #D8C64B;
+  --color-sky-200: #A9DCEB;
+  --color-slate-200: #D4E0EF;
+  --font-sans: "Google Sans", var(--font-fallback-sans), system-ui, -apple-system, sans-serif;
+}
+
+html {
+  scroll-behavior: smooth;
+  background-color: #0B2852;
+  color: #FFFFFF;
+}
+
+body {
+  background-color: #0B2852;
+  color: #FFFFFF;
+  font-family: "Google Sans", var(--font-fallback-sans), system-ui, -apple-system, sans-serif;
+  font-optical-sizing: auto;
+  font-weight: 400;
+  font-style: normal;
+  font-variation-settings: "GRAD" 0;
+  overflow-x: hidden;
+}
+
+h1, h2, h3, h4, h5, h6, nav, button, a, p, span, li, input, textarea, select {
+  font-family: "Google Sans", var(--font-fallback-sans), system-ui, -apple-system, sans-serif;
+  font-optical-sizing: auto;
+  font-variation-settings: "GRAD" 0;
+}
+
+/* Brochure-inspired Space & Telemetry Grid Backgrounds */
+.bg-space-gradient {
+  background: radial-gradient(circle at 75% 18%, rgba(28, 110, 156, 0.36) 0%, rgba(18, 61, 112, 0.45) 38%, rgba(11, 40, 82, 0.98) 78%),
+    linear-gradient(180deg, #071B38 0%, #0B2852 52%, #123D70 100%);
+}
+
+.bg-brochure-section {
+  background: linear-gradient(180deg, #0B2852 0%, #0E3160 50%, #0B2852 100%);
+}
+
+.bg-ocean-panel {
+  background: linear-gradient(145deg, rgba(18, 61, 112, 0.85) 0%, rgba(11, 40, 82, 0.94) 100%);
+}
+
+.orbital-grid {
+  background-image:
+    linear-gradient(to right, rgba(169, 220, 235, 0.06) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(169, 220, 235, 0.06) 1px, transparent 1px);
+  background-size: 48px 48px;
+}
+
+.orbital-dots {
+  background-image: radial-gradient(rgba(169, 220, 235, 0.16) 1px, transparent 1px);
+  background-size: 28px 28px;
+}
+
+/* Glassmorphism & Brochure Framing Cards */
+.glass-card {
+  background: linear-gradient(155deg, rgba(18, 61, 112, 0.72) 0%, rgba(11, 40, 82, 0.86) 100%);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid rgba(169, 220, 235, 0.18);
+  box-shadow: 0 18px 42px -14px rgba(4, 15, 34, 0.65);
+}
+
+.glass-card-hover {
+  transition: transform 0.3s cubic-bezier(0.22, 1, 0.36, 1),
+    border-color 0.3s ease,
+    box-shadow 0.3s ease;
+}
+
+.glass-card-hover:hover {
+  transform: translateY(-4px);
+  border-color: rgba(216, 198, 75, 0.55);
+  box-shadow: 0 22px 48px -12px rgba(6, 22, 48, 0.85), 0 0 26px rgba(28, 110, 156, 0.32);
+}
+
+.brochure-frame {
+  border: 1.5px solid rgba(255, 255, 255, 0.24);
+  box-shadow: 0 24px 60px rgba(4, 15, 34, 0.7), inset 0 1px 0 rgba(169, 220, 235, 0.2);
+}
+
+.gold-glow-text {
+  color: #D8C64B;
+  text-shadow: 0 0 28px rgba(216, 198, 75, 0.22);
+}
+
+.cyan-glow {
+  box-shadow: 0 0 32px rgba(169, 220, 235, 0.2);
+}
+
+/* Subtle Pulse & Orbital Animations */
+@keyframes pulseSlow {
+  0%, 100% {
+    opacity: 0.45;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.85;
+    transform: scale(1.04);
+  }
+}
+
+@keyframes scanline {
+  0% {
+    transform: translateY(-100%);
+  }
+  100% {
+    transform: translateY(300%);
+  }
+}
+
+.animate-pulse-slow {
+  animation: pulseSlow 5s ease-in-out infinite;
+}
+
+.animate-scanline {
+  animation: scanline 7s linear infinite;
+}
+
+/* Cinematic Orbital Video Motion Keyframes for Hero */
+@keyframes heroOrbitalCinema {
+  0% {
+    transform: scale3d(1.03, 1.03, 1) translate3d(0%, 0%, 0) rotate(0deg);
+  }
+  50% {
+    transform: scale3d(1.085, 1.085, 1) translate3d(-1.4%, -0.9%, 0) rotate(-0.45deg);
+  }
+  100% {
+    transform: scale3d(1.03, 1.03, 1) translate3d(0%, 0%, 0) rotate(0deg);
+  }
+}
+
+@keyframes sunriseFlarePulse {
+  0%, 100% {
+    opacity: 0.72;
+    transform: translate(-50%, -50%) scale(0.94);
+  }
+  50% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1.14);
+  }
+}
+
+@keyframes anamorphicStreak {
+  0%, 100% {
+    opacity: 0.45;
+    transform: translate(-50%, -50%) scaleX(0.88);
+  }
+  50% {
+    opacity: 0.9;
+    transform: translate(-50%, -50%) scaleX(1.18);
+  }
+}
+
+@keyframes radarSweepCone {
+  0%, 100% {
+    opacity: 0.38;
+    transform: rotate(-8deg) scaleY(0.96);
+  }
+  50% {
+    opacity: 0.72;
+    transform: rotate(9deg) scaleY(1.05);
+  }
+}
+
+@keyframes targetPingRing {
+  0% {
+    opacity: 0.85;
+    transform: translate(-50%, -50%) scale(0.35) rotateX(58deg);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(2.1) rotateX(58deg);
+  }
+}
+
+@keyframes solarWingGlint {
+  0%, 100% {
+    opacity: 0;
+    transform: translateX(-40%) rotate(-24deg);
+  }
+  45%, 55% {
+    opacity: 0.55;
+    transform: translateX(40%) rotate(-24deg);
+  }
+}
+
+.animate-hero-cinema {
+  animation: heroOrbitalCinema 22s ease-in-out infinite;
+  will-change: transform;
+}
+
+.animate-sunrise-flare {
+  animation: sunriseFlarePulse 6s ease-in-out infinite;
+}
+
+.animate-anamorphic-streak {
+  animation: anamorphicStreak 6s ease-in-out infinite;
+}
+
+.animate-radar-cone {
+  animation: radarSweepCone 7s ease-in-out infinite;
+  transform-origin: top center;
+}
+
+.animate-target-ping {
+  animation: targetPingRing 3.6s cubic-bezier(0.16, 1, 0.3, 1) infinite;
+}
+
+.animate-target-ping-delayed {
+  animation: targetPingRing 3.6s cubic-bezier(0.16, 1, 0.3, 1) 1.8s infinite;
+}
+
+.animate-solar-glint {
+  animation: solarWingGlint 8s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-hero-cinema,
+  .animate-sunrise-flare,
+  .animate-anamorphic-streak,
+  .animate-radar-cone,
+  .animate-target-ping,
+  .animate-target-ping-delayed,
+  .animate-solar-glint {
+    animation: none !important;
+  }
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: #071B38;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #1C6E9C;
+  border-radius: 9999px;
+  border: 2px solid #071B38;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #D8C64B;
+}
