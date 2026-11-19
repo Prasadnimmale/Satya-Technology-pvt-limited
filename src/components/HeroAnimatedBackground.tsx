@@ -1,6 +1,10 @@
 "use client";
 
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useRef, useState } from "react";
+
+// Tiny 40x23 inline base64 backdrop of the new Hero Satellite+Earth scene so frame 0 (0.0ms) is never blank
+const INSTANT_BLUR_DATA_URL =
+  "data:image/webp;base64,UklGRtoBAABXRUJQVlA4IM4BAACQCACdASooABcAPp0+nEkloyMhMBVaqLATiWYAsR8ED4s1qJzTQSr7yH6gBFXO0KPiv+gD5VtxYl15CXi5ERNVxsTWfo3/t6OOtLADAAD+/Q17bIpaAWk/RpsJi6OMu3tQb1/V/oNMcVqS5qgjbOcmi+oeLb/DGwLYEXeMJy7wnG+Vu7zQp5ZwqfDju9qLtoxnPmGGfdlGesBoezE+U+BXbr/ZR8ELsQdKUCfPZRn6WB/N3TMlm81KlDMvPO1KquAN1xyCGMza64Gya+74oR6YsF4+vbcTeQWRfRPpAcwK8ywm0Yk7vZQ6lYix2joA+GBoFKPQbaf7+34JLq6Xnl4aYLwpy979ji/MVKrO9m/A5KeA+U4fhUTqVV+CQuYa586griK5HV8n52vNENuZRXAbvPqYDlpcmXNWByCu1uEnjblT2+NwpYo/KfQ9vBJjEDcsrfdO4n8cWJ+0gC5J7YsxME5zSEsUOfuWRSB/sa5if7Dvx3eNKj9NmVE3YAo0sQ0ySuActVVrBGmc1IrjXTLwzHVoSi0sJ1RN8iYTdCkStBBC9DpfEiiCUD8mN+FiMih8XuZz2Jw0o/c/4NbUp3mKEhu7iiM/4Xf+TTAAAAA=";
 
 const VERTEX_SHADER = `
 attribute vec2 a_pos;
@@ -11,7 +15,7 @@ void main() {
 }
 `;
 
-// Real-time 3D Spherical Earth Slow-Motion Rotation + Sunrise Corona Shader
+// Real-time 60fps 3D Spherical Earth Slow-Motion Rotation + Horizon Sunrise Corona Shader (calibrated to hero-v2-earth.webp)
 const FRAGMENT_SHADER = `
 precision highp float;
 
@@ -20,7 +24,7 @@ uniform sampler2D u_tex;
 uniform vec2 u_res;
 uniform float u_time;
 
-const float IMG_ASPECT = 2048.0 / 1152.0;
+const float IMG_ASPECT = 1920.0 / 1080.0;
 
 // Rodrigues 3D axis-angle rotation on unit sphere
 vec3 rotateAxis(vec3 v, vec3 axis, float ang) {
@@ -29,50 +33,49 @@ vec3 rotateAxis(vec3 v, vec3 axis, float ang) {
   return v * c + cross(axis, v) * s + axis * dot(axis, v) * (1.0 - c);
 }
 
-// Compute object-cover UV in the 2048x1152 source image for any screen UV
+// Compute object-cover UV in the 1920x1080 source image for any screen UV
 vec2 screenToImageUV(vec2 suv) {
   float screenAspect = u_res.x / max(1.0, u_res.y);
   vec2 uv = suv;
   if (screenAspect > IMG_ASPECT) {
     float scale = IMG_ASPECT / screenAspect;
-    // Anchor slightly toward bottom-center so both satellite sky & Earth stay framed
     uv.y = (suv.y - 0.46) * scale + 0.46;
   } else {
     float scale = screenAspect / IMG_ASPECT;
-    float anchorX = screenAspect < 0.85 ? 0.485 : 0.52;
+    float anchorX = screenAspect < 0.85 ? 0.35 : 0.50;
     uv.x = (suv.x - anchorX) * scale + anchorX;
   }
   return clamp(uv, 0.001, 0.999);
 }
 
-// Sample the 3D-rotated Earth at a given angular offset 'theta'
+// Sample the 3D-rotated Earth at angular offset 'theta'
 vec3 sampleRotatedEarth(vec2 imgUV, float theta) {
-  // Work in aspect-corrected height units: P = (u * A, v)
   vec2 P = vec2(imgUV.x * IMG_ASPECT, imgUV.y);
 
-  // Exact fitted Earth sphere center & radius in height units
-  vec2 C = vec2(0.195 * IMG_ASPECT, 1.943);
-  float R = 1.591;
+  // Exact Kasa-fitted Earth sphere center & radius in height units for hero-v2
+  vec2 C = vec2(0.0053, 2.9946);
+  float R = 2.6440;
 
   vec2 d = P - C;
   float dist = length(d);
   float rn = dist / R;
 
-  if (rn >= 0.992) {
+  if (rn >= 0.995) {
     return texture2D(u_tex, imgUV).rgb;
   }
 
-  // Smoothly taper rotation near the glowing blue atmospheric horizon limb so horizon never tears
-  float innerWeight = smoothstep(0.992, 0.885, rn);
-  float effTheta = theta * innerWeight;
+  // Smoothly taper rotation near the glowing blue atmospheric limb AND near left sunrise so horizon stays 100% seamless
+  float innerWeight = smoothstep(0.995, 0.915, rn);
+  vec2 sunDelta = vec2((imgUV.x - 0.090) * IMG_ASPECT, imgUV.y - 0.385);
+  float sunGuard = smoothstep(0.14, 0.34, length(sunDelta));
+  float effTheta = theta * innerWeight * sunGuard;
 
-  // Reconstruct 3D point on the Earth globe
   vec2 sn = d / R;
   float sz = sqrt(max(0.0004, 1.0 - dot(sn, sn)));
   vec3 N = normalize(vec3(sn.x, sn.y, sz));
 
   // Tilted Earth polar spin axis (West-to-East slow-motion planetary rotation)
-  vec3 spinAxis = normalize(vec3(-0.28, -0.82, 0.50));
+  vec3 spinAxis = normalize(vec3(-0.32, -0.80, 0.51));
   vec3 Nsrc = rotateAxis(N, spinAxis, -effTheta);
 
   vec2 Psrc = C + Nsrc.xy * R;
@@ -84,17 +87,16 @@ vec3 sampleRotatedEarth(vec2 imgUV, float theta) {
 void main() {
   vec2 imgUV = screenToImageUV(v_uv);
 
-  // Dual-stream continuous forward slow-motion rotation (28s cycle -> continuous 1-way rotation forever!)
-  float cycle = 28.0;
-  float pA = fract(u_time / cycle);
-  float pB = fract(u_time / cycle + 0.5);
+  // Dual-stream continuous forward slow-motion rotation (26s cycle; starts cleanly from thetaA = 0 at u_time = 0!)
+  float cycle = 26.0;
+  // Offset by +0.5 so at u_time = 0, Stream A has pA = 0.5 -> wA = 1.0, thetaA = 0.0 (exact match to SSR poster!)
+  float pA = fract(u_time / cycle + 0.5);
+  float pB = fract(u_time / cycle);
 
-  // Raised-cosine crossfade weights (wA + wB == 1.0 everywhere, 0 at wraparound)
   float wA = 0.5 - 0.5 * cos(6.2831853 * pA);
   float wB = 1.0 - wA;
 
-  // Slow-motion spherical arc (~12.5 degrees per cycle, strictly forward!)
-  float span = 0.215;
+  float span = 0.165;
   float thetaA = (pA - 0.5) * span;
   float thetaB = (pB - 0.5) * span;
 
@@ -102,20 +104,20 @@ void main() {
   vec3 colB = sampleRotatedEarth(imgUV, thetaB);
   vec3 color = colA * wA + colB * wB;
 
-  // Subtle breathing golden-cyan sunrise radiance at exact horizon sun (0.546, 0.476)
-  vec2 sunDelta = vec2((imgUV.x - 0.546) * IMG_ASPECT, imgUV.y - 0.476);
+  // Breathing golden-cyan sunrise radiance at exact horizon sun (0.090, 0.385)
+  vec2 sunDelta = vec2((imgUV.x - 0.090) * IMG_ASPECT, imgUV.y - 0.385);
   float sunDist = length(sunDelta);
-  float sunPulse = 0.85 + 0.15 * sin(u_time * 1.25);
-  float warmBloom = exp(-sunDist * 7.5) * 0.22 * sunPulse;
+  float sunPulse = 0.5 + 0.5 * sin(u_time * 1.35);
+  float warmBloom = exp(-sunDist * 7.2) * 0.16 * sunPulse;
   color += vec3(1.0, 0.88, 0.55) * warmBloom;
 
-  // Subtle shimmering cyan atmospheric rim glow along r ~ 0.985
+  // Shimmering cyan atmospheric rim glow along the curved Earth limb (rn ~ 0.996)
   vec2 P = vec2(imgUV.x * IMG_ASPECT, imgUV.y);
-  vec2 C = vec2(0.195 * IMG_ASPECT, 1.943);
-  float rn = length(P - C) / 1.591;
-  float rim = exp(-pow((rn - 0.992) * 58.0, 2.0));
-  float rimWave = 0.5 + 0.5 * sin(u_time * 1.4 + imgUV.x * 7.0);
-  color += vec3(0.42, 0.82, 1.0) * rim * 0.14 * rimWave;
+  vec2 C = vec2(0.0053, 2.9946);
+  float rn = length(P - C) / 2.6440;
+  float rim = exp(-pow((rn - 0.996) * 68.0, 2.0));
+  float rimWave = 0.5 + 0.5 * sin(u_time * 1.5 + imgUV.x * 7.5);
+  color += vec3(0.42, 0.84, 1.0) * rim * 0.13 * rimWave;
 
   gl_FragColor = vec4(color, 1.0);
 }
@@ -133,6 +135,7 @@ interface TwinkleStar {
 export default function HeroAnimatedBackground() {
   const glCanvasRef = useRef<HTMLCanvasElement>(null);
   const overlayCanvasRef = useRef<HTMLCanvasElement>(null);
+  const [liveReady, setLiveReady] = useState(false);
 
   useEffect(() => {
     const glCanvas = glCanvasRef.current;
@@ -152,15 +155,15 @@ export default function HeroAnimatedBackground() {
     let width = 1;
     let height = 1;
     let dpr = 1;
+    let markedReady = false;
 
-    // Load clean Earth+Space image (for WebGL sphere shader) & surgical Satellite cutout PNG (for 2D orbital + scan beam layer)
     const earthImg = new window.Image();
-    earthImg.crossOrigin = "anonymous";
-    earthImg.src = "/images/hero-earth-clean.jpg";
+    earthImg.decoding = "async";
+    earthImg.src = "/images/hero-v2-earth.webp";
 
     const satImg = new window.Image();
-    satImg.crossOrigin = "anonymous";
-    satImg.src = "/images/hero-satellite-layer.png";
+    satImg.decoding = "async";
+    satImg.src = "/images/hero-v2-satellite.webp";
 
     let earthReady = false;
     let satReady = false;
@@ -168,6 +171,7 @@ export default function HeroAnimatedBackground() {
     let uResLoc: WebGLUniformLocation | null = null;
     let uTimeLoc: WebGLUniformLocation | null = null;
     let glTexture: WebGLTexture | null = null;
+    let animStartTime = 0;
 
     if (gl) {
       const compile = (type: number, src: string) => {
@@ -212,7 +216,16 @@ export default function HeroAnimatedBackground() {
       }
     }
 
-    earthImg.onload = () => {
+    const checkBothReady = () => {
+      if (earthReady && satReady && !markedReady) {
+        markedReady = true;
+        animStartTime = performance.now();
+        setLiveReady(true);
+      }
+    };
+
+    const onEarthLoaded = () => {
+      if (earthReady) return;
       earthReady = true;
       if (gl && glProgram) {
         glTexture = gl.createTexture();
@@ -230,19 +243,27 @@ export default function HeroAnimatedBackground() {
           earthImg
         );
       }
+      checkBothReady();
     };
 
-    satImg.onload = () => {
+    const onSatLoaded = () => {
+      if (satReady) return;
       satReady = true;
+      checkBothReady();
     };
 
-    const twinkleStars: TwinkleStar[] = Array.from({ length: 64 }, (_, i) => ({
-      u: Math.random(),
-      v: Math.random() * 0.52,
-      r: 0.6 + Math.random() * 1.35,
-      speed: 1.0 + Math.random() * 2.2,
+    earthImg.onload = onEarthLoaded;
+    satImg.onload = onSatLoaded;
+    if (earthImg.complete && earthImg.naturalWidth > 0) onEarthLoaded();
+    if (satImg.complete && satImg.naturalWidth > 0) onSatLoaded();
+
+    const twinkleStars: TwinkleStar[] = Array.from({ length: 56 }, (_, i) => ({
+      u: 0.15 + Math.random() * 0.84,
+      v: Math.random() * 0.48,
+      r: 0.6 + Math.random() * 1.3,
+      speed: 1.1 + Math.random() * 2.1,
       phase: Math.random() * Math.PI * 2,
-      gold: i % 9 === 0,
+      gold: i % 8 === 0,
     }));
 
     const resize = () => {
@@ -266,9 +287,9 @@ export default function HeroAnimatedBackground() {
     resize();
     window.addEventListener("resize", resize, { passive: true });
 
-    // Convert normalized image UV (0..1, 0..1) in 2048x1152 space to exact screen pixel (matching shader's screenToImageUV!)
+    // Convert normalized image UV (0..1, 0..1) in 1920x1080 space to exact screen pixel (matching shader's screenToImageUV!)
     const imageUVToScreen = (iu: number, iv: number) => {
-      const imgAspect = 2048 / 1152;
+      const imgAspect = 1920 / 1080;
       const screenAspect = width / height;
       let su = iu;
       let sv = iv;
@@ -277,35 +298,40 @@ export default function HeroAnimatedBackground() {
         sv = (iv - 0.46) / scale + 0.46;
       } else {
         const scale = screenAspect / imgAspect;
-        const anchorX = screenAspect < 0.85 ? 0.485 : 0.52;
+        const anchorX = screenAspect < 0.85 ? 0.35 : 0.5;
         su = (iu - anchorX) / scale + anchorX;
       }
       return {
         x: su * width,
         y: sv * height,
-        pxScale: Math.max(width / 2048, height / 1152),
+        pxScale: Math.max(width / 1920, height / 1080),
       };
     };
 
-    const start = performance.now();
-
     const render = (now: number) => {
-      const t = reducedMotion ? 0 : (now - start) * 0.001;
+      if (!earthReady || !satReady) {
+        rafId = window.requestAnimationFrame(render);
+        return;
+      }
+
+      const t = reducedMotion
+        ? 0
+        : Math.max(0, (now - animStartTime) * 0.001);
 
       // 1. Render 3D Slow-Motion Rotating Earth in WebGL
-      if (gl && glProgram && earthReady && glTexture) {
+      if (gl && glProgram && glTexture) {
         gl.useProgram(glProgram);
         gl.uniform2f(uResLoc, glCanvas.width, glCanvas.height);
         gl.uniform1f(uTimeLoc, t);
         gl.drawArrays(gl.TRIANGLES, 0, 6);
       }
 
-      // 2. Render Twinkling Stars, Satellite Scan Beam Falling onto Earth, & Floating Orbital Satellite
+      // 2. Render Twinkling Stars, Parabolic Dish Scan Beam onto India, & Floating Orbital Spacecraft
       if (ctx2d) {
         ctx2d.clearRect(0, 0, width, height);
 
-        // Fallback if WebGL unavailable: draw clean Earth image directly
-        if ((!gl || !glProgram) && earthReady) {
+        // Fallback if WebGL unavailable
+        if (!gl || !glProgram) {
           const topL = imageUVToScreen(0, 0);
           const botR = imageUVToScreen(1, 1);
           ctx2d.drawImage(
@@ -317,12 +343,17 @@ export default function HeroAnimatedBackground() {
           );
         }
 
-        // Subtle twinkling cosmic stars in the upper nebula sky
+        const isMobileLayout = width < 1024;
+
+        // Subtle twinkling cosmic stars in the upper space sky (outside Earth's curved limb)
         for (const st of twinkleStars) {
+          const px = st.u * (1920 / 1080);
+          const py = st.v;
+          const distToEarth = Math.hypot(px - 0.0053, py - 2.9946) / 2.644;
+          if (distToEarth < 1.02) continue;
           const pos = imageUVToScreen(st.u, st.v);
-          // Skip stars that fall inside Earth's limb
-          if (st.v > 0.34 && st.u < 0.65) continue;
-          const alpha = 0.25 + 0.55 * (0.5 + 0.5 * Math.sin(t * st.speed + st.phase));
+          const alpha =
+            0.22 + 0.55 * (0.5 + 0.5 * Math.sin(t * st.speed + st.phase));
           ctx2d.beginPath();
           ctx2d.arc(pos.x, pos.y, st.r, 0, Math.PI * 2);
           ctx2d.fillStyle = st.gold
@@ -331,59 +362,57 @@ export default function HeroAnimatedBackground() {
           ctx2d.fill();
         }
 
-        const isMobileLayout = width < 1024;
-
-        // Orbital trajectory arc curving above Earth's horizon
+        // Orbital trajectory arc curving behind the spacecraft
         const o1 = isMobileLayout
-          ? { x: width * 0.04, y: width < 640 ? 118 : 128 }
-          : imageUVToScreen(0.42, 0.02);
+          ? { x: width * 0.02, y: width < 640 ? 112 : 124 }
+          : imageUVToScreen(0.18, 0.04);
         const oc = isMobileLayout
-          ? { x: width * 0.56, y: width < 640 ? 166 : 182 }
-          : imageUVToScreen(0.76, 0.19);
+          ? { x: width * 0.53, y: width < 640 ? 168 : 186 }
+          : imageUVToScreen(0.60, 0.30);
         const o2 = isMobileLayout
-          ? { x: width * 0.97, y: width < 640 ? 248 : 276 }
-          : imageUVToScreen(0.99, 0.48);
+          ? { x: width * 0.98, y: width < 640 ? 252 : 282 }
+          : imageUVToScreen(0.99, 0.68);
 
         ctx2d.save();
         ctx2d.beginPath();
         ctx2d.moveTo(o1.x, o1.y);
         ctx2d.quadraticCurveTo(oc.x, oc.y, o2.x, o2.y);
         ctx2d.strokeStyle = isMobileLayout
-          ? "rgba(169, 220, 235, 0.34)"
+          ? "rgba(169, 220, 235, 0.32)"
           : "rgba(169, 220, 235, 0.22)";
-        ctx2d.lineWidth = 1.2;
+        ctx2d.lineWidth = 1.25;
         ctx2d.setLineDash([6, 10]);
-        ctx2d.lineDashOffset = -t * 18;
+        ctx2d.lineDashOffset = -t * 20;
         ctx2d.stroke();
         ctx2d.restore();
 
-        // Satellite slow-motion orbital glide parameters
-        const satOrbitX = Math.sin(t * 0.36) * (isMobileLayout ? 9 : 26);
-        const satOrbitY = Math.cos(t * 0.28) * (isMobileLayout ? 6 : 14);
-        const satRoll = Math.sin(t * 0.32) * 0.038; // ~2.2 deg gentle orbital attitude roll
-        const satBreath = 1.0 + 0.032 * Math.sin(t * 0.25);
+        // Spacecraft slow-motion orbital glide (all Math.sin so at t = 0 offset is 0.0 -> zero jump from SSR poster!)
+        const satOrbitX = Math.sin(t * 0.42) * (isMobileLayout ? 9 : 24);
+        const satOrbitY = Math.sin(t * 0.31) * (isMobileLayout ? 6 : 14);
+        const satRoll = Math.sin(t * 0.34) * 0.035;
+        const satBreath = 1.0 + 0.028 * Math.sin(t * 0.27);
 
-        // Satellite's center & optical/SAR barrel tip in 2048x1152 source space: (0.792, 0.232) and (0.816, 0.332)
-        const desktopSatPivot = imageUVToScreen(0.792, 0.232);
+        // Satellite geometric center (0.600, 0.3185) & parabolic dish feedhorn tip (0.556, 0.494) in 1920x1080 space
+        const desktopSatPivot = imageUVToScreen(0.600, 0.3185);
+        // Satellite wing-to-wing width in 1920px source space is 1353px
         const mobileTargetWingSpan =
           width < 640
-            ? Math.min(width * 0.68, 290)
-            : Math.min(width * 0.48, 360);
-        // Satellite wing-to-wing width in 2048px source space is ~700px centered at u=0.792
+            ? Math.min(width * 0.86, 345)
+            : Math.min(width * 0.64, 470);
         const renderScale = isMobileLayout
-          ? (mobileTargetWingSpan / 700) * satBreath
+          ? (mobileTargetWingSpan / 1353) * satBreath
           : desktopSatPivot.pxScale * satBreath;
 
         const satCenterX = isMobileLayout
-          ? width * (width < 640 ? 0.55 : 0.58) + satOrbitX
+          ? width * 0.52 + satOrbitX
           : desktopSatPivot.x + satOrbitX;
         const satCenterY = isMobileLayout
-          ? (width < 640 ? 176 : 196) + satOrbitY
+          ? (width < 640 ? 174 : 196) + satOrbitY
           : desktopSatPivot.y + satOrbitY;
 
-        // Compute rotated & translated nozzle screen position so scan beam stays 100% locked to the moving satellite!
-        const srcNozzleDX = (0.816 - 0.792) * 2048;
-        const srcNozzleDY = (0.332 - 0.232) * 1152;
+        // Exact rotated & translated parabolic dish feedhorn screen position
+        const srcNozzleDX = (0.556 - 0.600) * 1920;
+        const srcNozzleDY = (0.494 - 0.3185) * 1080;
         const ndx = srcNozzleDX * renderScale;
         const ndy = srcNozzleDY * renderScale;
         const cosR = Math.cos(satRoll);
@@ -391,28 +420,30 @@ export default function HeroAnimatedBackground() {
         const nozzleX = satCenterX + ndx * cosR - ndy * sinR;
         const nozzleY = satCenterY + ndx * sinR + ndy * cosR;
 
-        // Target scan footprint sweeping slowly across India & Indian Ocean on the rotating Earth!
-        const sweepU = 0.495 + 0.065 * Math.sin(t * 0.42);
-        const sweepV = 0.725 + 0.045 * Math.cos(t * 0.34);
+        // Target scan footprint sweeping across India & Indian Ocean on the rotating Earth!
+        const sweepU = 0.355 + 0.055 * Math.sin(t * 0.44);
+        const sweepV = 0.745 + 0.04 * Math.sin(t * 0.33);
         const desktopTarget = imageUVToScreen(sweepU, sweepV);
         const target = isMobileLayout
           ? {
-              x: width * (0.48 + 0.09 * Math.sin(t * 0.42)),
-              y: Math.min(height * 0.54, width < 640 ? 470 : 530),
+              x: width * (0.44 + 0.09 * Math.sin(t * 0.44)),
+              y: Math.min(height * 0.53, width < 640 ? 465 : 530),
             }
           : desktopTarget;
         const sFactor = isMobileLayout
-          ? Math.max(0.52, renderScale * 1.35)
+          ? Math.max(0.54, renderScale * 1.9)
           : desktopSatPivot.pxScale;
 
-        // Volumetric Multi-Spectral Satellite Scan Cone falling from Satellite onto Earth
+        // Volumetric Multi-Spectral Scan Cone projecting from Parabolic Dish onto India
         const coneAngle =
           Math.atan2(target.y - nozzleY, target.x - nozzleX) + Math.PI / 2;
-        const footprintRadius = 78 * sFactor;
+        const footprintRadius = 82 * sFactor;
         const leftFootX = target.x + Math.cos(coneAngle) * footprintRadius;
-        const leftFootY = target.y + Math.sin(coneAngle) * footprintRadius * 0.52;
+        const leftFootY =
+          target.y + Math.sin(coneAngle) * footprintRadius * 0.52;
         const rightFootX = target.x - Math.cos(coneAngle) * footprintRadius;
-        const rightFootY = target.y - Math.sin(coneAngle) * footprintRadius * 0.52;
+        const rightFootY =
+          target.y - Math.sin(coneAngle) * footprintRadius * 0.52;
 
         const coneGrad = ctx2d.createLinearGradient(
           nozzleX,
@@ -420,7 +451,7 @@ export default function HeroAnimatedBackground() {
           target.x,
           target.y
         );
-        coneGrad.addColorStop(0, "rgba(169, 220, 235, 0.55)");
+        coneGrad.addColorStop(0, "rgba(169, 220, 235, 0.52)");
         coneGrad.addColorStop(0.45, "rgba(28, 110, 156, 0.22)");
         coneGrad.addColorStop(0.85, "rgba(216, 198, 75, 0.14)");
         coneGrad.addColorStop(1, "rgba(216, 198, 75, 0.02)");
@@ -433,20 +464,20 @@ export default function HeroAnimatedBackground() {
         ctx2d.fillStyle = coneGrad;
         ctx2d.fill();
 
-        // Center telemetry beam + descending golden/cyan data pulses from satellite to Earth
+        // Center telemetry beam + descending golden/cyan data pulses
         ctx2d.save();
         ctx2d.beginPath();
         ctx2d.moveTo(nozzleX, nozzleY);
         ctx2d.lineTo(target.x, target.y);
-        ctx2d.strokeStyle = "rgba(169, 220, 235, 0.42)";
+        ctx2d.strokeStyle = "rgba(169, 220, 235, 0.45)";
         ctx2d.lineWidth = 1.3;
         ctx2d.setLineDash([5, 8]);
-        ctx2d.lineDashOffset = -t * 42;
+        ctx2d.lineDashOffset = -t * 44;
         ctx2d.stroke();
         ctx2d.restore();
 
         for (let p = 0; p < 3; p++) {
-          const prog = (t * 0.44 + p / 3) % 1;
+          const prog = (t * 0.46 + p / 3) % 1;
           const px = nozzleX + (target.x - nozzleX) * prog;
           const py = nozzleY + (target.y - nozzleY) * prog;
           ctx2d.beginPath();
@@ -458,16 +489,16 @@ export default function HeroAnimatedBackground() {
           ctx2d.fill();
         }
 
-        // Expanding concentric radar scan ellipses rippling on Earth's curved surface
+        // Expanding concentric radar scan ellipses rippling over India on Earth's surface
         for (let ring = 0; ring < 3; ring++) {
-          const rp = (t * 0.36 + ring / 3) % 1;
-          const rx = (18 + rp * 82) * sFactor;
+          const rp = (t * 0.38 + ring / 3) % 1;
+          const rx = (18 + rp * 84) * sFactor;
           const ry = rx * 0.48;
           const alpha = (1 - rp) * 0.62;
 
           ctx2d.save();
           ctx2d.translate(target.x, target.y);
-          ctx2d.rotate(-0.22);
+          ctx2d.rotate(-0.2);
           ctx2d.beginPath();
           ctx2d.ellipse(0, 0, rx, ry, 0, 0, Math.PI * 2);
           ctx2d.strokeStyle =
@@ -479,42 +510,40 @@ export default function HeroAnimatedBackground() {
           ctx2d.restore();
         }
 
-        // Draw the Crisp Isolated Satellite Layer floating & orbiting above Earth!
-        if (satReady) {
-          const natW = satImg.naturalWidth || 2048;
-          const natH = satImg.naturalHeight || 1152;
-          const srcPivotX = 0.792 * natW;
-          const srcPivotY = 0.232 * natH;
-          const scaleRatioX = 2048 / natW;
-          const scaleRatioY = 1152 / natH;
+        // Draw the Surgical Isolated Spacecraft Layer floating & orbiting above Earth!
+        const natW = satImg.naturalWidth || 1920;
+        const natH = satImg.naturalHeight || 1080;
+        const srcPivotX = 0.600 * natW;
+        const srcPivotY = 0.3185 * natH;
+        const scaleRatioX = 1920 / natW;
+        const scaleRatioY = 1080 / natH;
 
-          ctx2d.save();
-          ctx2d.translate(satCenterX, satCenterY);
-          ctx2d.rotate(satRoll);
-          ctx2d.scale(renderScale * scaleRatioX, renderScale * scaleRatioY);
+        ctx2d.save();
+        ctx2d.translate(satCenterX, satCenterY);
+        ctx2d.rotate(satRoll);
+        ctx2d.scale(renderScale * scaleRatioX, renderScale * scaleRatioY);
 
-          ctx2d.shadowColor = "rgba(4, 15, 36, 0.7)";
-          ctx2d.shadowBlur = isMobileLayout ? 14 : 18;
-          ctx2d.drawImage(satImg, -srcPivotX, -srcPivotY, natW, natH);
-          ctx2d.restore();
+        ctx2d.shadowColor = "rgba(3, 12, 30, 0.72)";
+        ctx2d.shadowBlur = isMobileLayout ? 14 : 20;
+        ctx2d.drawImage(satImg, -srcPivotX, -srcPivotY, natW, natH);
+        ctx2d.restore();
 
-          // Subtle sensor lens glow right at the satellite barrel aperture
-          const lensGlow = ctx2d.createRadialGradient(
-            nozzleX,
-            nozzleY,
-            0,
-            nozzleX,
-            nozzleY,
-            16 * sFactor
-          );
-          lensGlow.addColorStop(0, "rgba(255, 255, 255, 0.9)");
-          lensGlow.addColorStop(0.35, "rgba(169, 220, 235, 0.55)");
-          lensGlow.addColorStop(1, "rgba(169, 220, 235, 0)");
-          ctx2d.fillStyle = lensGlow;
-          ctx2d.beginPath();
-          ctx2d.arc(nozzleX, nozzleY, 16 * sFactor, 0, Math.PI * 2);
-          ctx2d.fill();
-        }
+        // Subtle sensor feedhorn glow right at the parabolic dish tip
+        const lensGlow = ctx2d.createRadialGradient(
+          nozzleX,
+          nozzleY,
+          0,
+          nozzleX,
+          nozzleY,
+          15 * sFactor
+        );
+        lensGlow.addColorStop(0, "rgba(255, 255, 255, 0.92)");
+        lensGlow.addColorStop(0.38, "rgba(169, 220, 235, 0.55)");
+        lensGlow.addColorStop(1, "rgba(169, 220, 235, 0)");
+        ctx2d.fillStyle = lensGlow;
+        ctx2d.beginPath();
+        ctx2d.arc(nozzleX, nozzleY, 15 * sFactor, 0, Math.PI * 2);
+        ctx2d.fill();
       }
 
       if (!reducedMotion) {
@@ -531,27 +560,68 @@ export default function HeroAnimatedBackground() {
   }, []);
 
   return (
-    <div className="absolute inset-0 z-0 overflow-hidden bg-[#041126] select-none pointer-events-none">
+    <div
+      className="absolute inset-0 z-0 overflow-hidden bg-[#041126] bg-cover bg-center select-none pointer-events-none"
+      style={{ backgroundImage: `url("${INSTANT_BLUR_DATA_URL}")` }}
+    >
+      {/* Layer 0 (0ms Instant SSR Paint Together With Navbar — Stays Solid Underneath for Zero-Flicker Handoff!) */}
+      <div className="absolute inset-0">
+        {/* Desktop SSR Full Scene */}
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src="/images/hero-v2-poster.webp"
+          alt=""
+          fetchPriority="high"
+          loading="eager"
+          decoding="sync"
+          className="hidden lg:block w-full h-full object-cover object-[50%_46%]"
+        />
+
+        {/* Mobile/Tablet SSR Earth + Top Sky Stage Satellite */}
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src="/images/hero-v2-earth.webp"
+          alt=""
+          fetchPriority="high"
+          loading="eager"
+          decoding="sync"
+          className="lg:hidden w-full h-full object-cover object-[35%_50%]"
+        />
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src="/images/hero-v2-satellite.webp"
+          alt=""
+          fetchPriority="high"
+          loading="eager"
+          decoding="sync"
+          className="lg:hidden absolute top-[78px] left-1/2 -translate-x-[48%] w-[88vw] max-w-[440px] h-auto object-contain"
+        />
+      </div>
+
       {/* Layer 1: 60fps WebGL 3D Slow-Motion Rotating Earth Globe + Sunrise Corona */}
       <canvas
         ref={glCanvasRef}
-        className="absolute inset-0 w-full h-full block"
+        className={`absolute inset-0 w-full h-full block transition-opacity duration-300 ${
+          liveReady ? "opacity-100" : "opacity-0"
+        }`}
         aria-hidden="true"
       />
 
-      {/* Layer 2: Floating Orbital Satellite + Earth-Targeted Multi-Spectral Scan Beam */}
+      {/* Layer 2: Floating Orbital Spacecraft + India-Targeted Parabolic Telemetry Beam */}
       <canvas
         ref={overlayCanvasRef}
-        className="absolute inset-0 w-full h-full block"
+        className={`absolute inset-0 w-full h-full block transition-opacity duration-300 ${
+          liveReady ? "opacity-100" : "opacity-0"
+        }`}
         aria-hidden="true"
       />
 
-      {/* Desktop Readability Scrim: Keeps Right Satellite & Rotating Earth Vividly Visible */}
+      {/* Desktop Readability Scrim: Keeps Upper-Right Spacecraft, Sunrise & Rotating Earth Vividly Visible */}
       <div
         className="hidden lg:block absolute inset-0"
         style={{
           background:
-            "radial-gradient(ellipse 56% 62% at 24% 46%, rgba(6, 22, 48, 0.56) 0%, rgba(11, 40, 82, 0.24) 62%, rgba(11, 40, 82, 0.0) 100%)",
+            "radial-gradient(ellipse 52% 58% at 22% 54%, rgba(6, 22, 48, 0.58) 0%, rgba(11, 40, 82, 0.22) 60%, rgba(11, 40, 82, 0.0) 100%)",
         }}
       />
 
@@ -560,12 +630,12 @@ export default function HeroAnimatedBackground() {
         className="lg:hidden absolute inset-0"
         style={{
           background:
-            "linear-gradient(180deg, rgba(4, 17, 38, 0.25) 0px, rgba(4, 17, 38, 0.0) 95px, rgba(4, 17, 38, 0.04) 255px, rgba(6, 22, 48, 0.64) 340px, rgba(7, 27, 56, 0.58) 78%, rgba(11, 40, 82, 0.92) 100%)",
+            "linear-gradient(180deg, rgba(4, 17, 38, 0.22) 0px, rgba(4, 17, 38, 0.0) 95px, rgba(4, 17, 38, 0.04) 255px, rgba(6, 22, 48, 0.64) 340px, rgba(7, 27, 56, 0.58) 78%, rgba(11, 40, 82, 0.92) 100%)",
         }}
       />
 
       {/* Smooth Top Navbar & Bottom Section Transition */}
-      <div className="hidden lg:block absolute inset-x-0 top-0 h-28 bg-gradient-to-b from-[#071B38]/75 to-transparent" />
+      <div className="hidden lg:block absolute inset-x-0 top-0 h-24 bg-gradient-to-b from-[#071B38]/65 to-transparent" />
       <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-[#0B2852] via-[#0B2852]/45 to-transparent" />
     </div>
   );
