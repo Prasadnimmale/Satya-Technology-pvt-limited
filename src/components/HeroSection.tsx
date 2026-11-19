@@ -19,6 +19,10 @@ export default function HeroSection() {
     as: "image",
     fetchPriority: "high",
   });
+  preload("/images/hero-v2-satellite-mobile.webp", {
+    as: "image",
+    fetchPriority: "high",
+  });
 
   return (
     <section className="relative min-h-[92vh] lg:min-h-[94vh] flex flex-col justify-between pt-20 lg:pt-36 pb-10 sm:pb-14 overflow-hidden bg-[#041126]">
