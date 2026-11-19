@@ -1,10 +1,19 @@
 import React from "react";
+import { preload } from "react-dom";
 import Link from "next/link";
 import { ArrowRight, Radio, Satellite, Cpu, ShieldCheck } from "lucide-react";
 import { COMPANY_INFO } from "@/data/siteData";
 import HeroAnimatedBackground from "./HeroAnimatedBackground";
 
 export default function HeroSection() {
+  // Preload Hero Space+Satellite layers in <head> alongside Navbar so Hero paints at 0ms with zero delay
+  preload("/images/hero-v2-poster.webp", { as: "image", fetchPriority: "high" });
+  preload("/images/hero-v2-earth.webp", { as: "image", fetchPriority: "high" });
+  preload("/images/hero-v2-satellite.webp", {
+    as: "image",
+    fetchPriority: "high",
+  });
+
   return (
     <section className="relative min-h-[92vh] lg:min-h-[94vh] flex flex-col justify-between pt-20 lg:pt-36 pb-10 sm:pb-14 overflow-hidden bg-[#041126]">
       {/* Animated Orbital Satellite & Earth Video-Motion Background */}
