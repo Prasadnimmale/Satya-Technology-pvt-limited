@@ -15,7 +15,8 @@ void main() {
 }
 `;
 
-// Real-time 60fps 3D Spherical Earth Slow-Motion Rotation Shader (Sunlight kept 100% static & soft)
+// Real-time 60fps 3D Spherical Earth Slow-Motion Rotation Shader
+// On Mobile (<1024px): Earth's horizon is leveled (-13.4 deg) into a symmetric horizontal arch!
 const FRAGMENT_SHADER = `
 precision highp float;
 
@@ -33,16 +34,19 @@ vec3 rotateAxis(vec3 v, vec3 axis, float ang) {
   return v * c + cross(axis, v) * s + axis * dot(axis, v) * (1.0 - c);
 }
 
-// Compute raw image UV matching Tailwind's lg (<1024px) mobile/tablet mode vs desktop mode
 vec2 screenToRawImageUV(vec2 suv) {
   float screenAspect = u_res.x / max(1.0, u_res.y);
   if (u_mobile > 0.5) {
-    // Mobile & Tablet (<1024px): show u in [0.045 .. 0.645] so Left Soft Horizon Glow + Centered India BOTH align cleanly!
-    float spanU = 0.60;
-    float spanV = spanU * IMG_ASPECT / screenAspect;
-    float ux = suv.x * spanU + 0.045;
-    float uy = (suv.y - 0.285) * spanV + 0.385;
-    return vec2(ux, uy);
+    // Rotate mobile Earth camera by -13.4 deg (0.234 rad) around India/horizon (u=0.35, v=0.475)
+    // so Earth's glowing horizon forms a 100% STRAIGHT, LEVEL, SYMMETRIC horizontal arch across mobile!
+    float spanP = 0.58 * IMG_ASPECT;
+    float px = (suv.x - 0.5) * spanP;
+    float py = (suv.y - 0.355) * (spanP / screenAspect);
+    float c = cos(0.234);
+    float s = sin(0.234);
+    vec2 pCenter = vec2(0.35 * IMG_ASPECT, 0.475);
+    vec2 pRot = pCenter + vec2(px * c - py * s, px * s + py * c);
+    return vec2(pRot.x / IMG_ASPECT, pRot.y);
   }
   vec2 uv = suv;
   if (screenAspect > IMG_ASPECT) {
@@ -59,7 +63,6 @@ vec3 sampleRotatedEarth(vec2 rawUV, float theta) {
   vec2 imgUV = clamp(rawUV, 0.002, 0.998);
   vec2 P = vec2(rawUV.x * IMG_ASPECT, rawUV.y);
 
-  // Exact fitted Earth sphere center & radius in height units for hero-v2
   vec2 C = vec2(0.0053, 2.9946);
   float R = 2.6440;
 
@@ -92,7 +95,6 @@ vec3 sampleRotatedEarth(vec2 rawUV, float theta) {
 void main() {
   vec2 rawUV = screenToRawImageUV(v_uv);
 
-  // Dual-stream continuous forward slow-motion rotation (starts cleanly at thetaA = 0 at u_time = 0)
   float cycle = 26.0;
   float pA = fract(u_time / cycle + 0.5);
   float pB = fract(u_time / cycle);
@@ -108,19 +110,27 @@ void main() {
   vec3 colB = sampleRotatedEarth(rawUV, thetaB);
   vec3 color = colA * wA + colB * wB;
 
-  // Seamless blend above/below image bounds on mobile viewports (zero horizontal edge seams!)
-  if (rawUV.y < 0.08) {
-    float topBlend = smoothstep(-0.04, 0.08, rawUV.y);
+  // Seamless blend above/below/sides of image bounds on mobile viewports
+  if (rawUV.y < 0.09) {
+    float topBlend = smoothstep(0.01, 0.09, rawUV.y);
     vec3 deepSpace = vec3(0.012, 0.032, 0.075);
     color = mix(deepSpace, color, topBlend);
   }
-  if (rawUV.y > 0.90) {
-    float botBlend = smoothstep(0.90, 1.04, rawUV.y);
+  if (rawUV.y > 0.88) {
+    float botBlend = smoothstep(0.88, 0.99, rawUV.y);
     vec3 brandNavy = vec3(11.0 / 255.0, 40.0 / 255.0, 82.0 / 255.0);
     color = mix(color, brandNavy, botBlend);
   }
-
-  // Sunlight is kept 100% static and soft (no animated sunbeams or pulsing glare)
+  if (rawUV.x < 0.03) {
+    float leftBlend = smoothstep(0.0, 0.03, rawUV.x);
+    vec3 deepSpace = vec3(0.012, 0.032, 0.075);
+    color = mix(deepSpace, color, leftBlend);
+  }
+  if (rawUV.x > 0.97) {
+    float rightBlend = smoothstep(0.97, 1.0, rawUV.x);
+    vec3 brandNavy = vec3(11.0 / 255.0, 40.0 / 255.0, 82.0 / 255.0);
+    color = mix(color, brandNavy, rightBlend);
+  }
 
   // Subtle cyan atmospheric rim along the curved Earth limb
   vec2 P = vec2(rawUV.x * IMG_ASPECT, rawUV.y);
@@ -172,12 +182,17 @@ export default function HeroAnimatedBackground() {
     earthImg.decoding = "async";
     earthImg.src = "/images/hero-v2-earth.webp?v=2";
 
-    const satImg = new window.Image();
-    satImg.decoding = "async";
-    satImg.src = "/images/hero-v2-satellite.webp";
+    const satDesktopImg = new window.Image();
+    satDesktopImg.decoding = "async";
+    satDesktopImg.src = "/images/hero-v2-satellite.webp";
+
+    const satMobileImg = new window.Image();
+    satMobileImg.decoding = "async";
+    satMobileImg.src = "/images/hero-v2-satellite-mobile.webp";
 
     let earthReady = false;
-    let satReady = false;
+    let satDesktopReady = false;
+    let satMobileReady = false;
     let glProgram: WebGLProgram | null = null;
     let uResLoc: WebGLUniformLocation | null = null;
     let uTimeLoc: WebGLUniformLocation | null = null;
@@ -229,8 +244,10 @@ export default function HeroAnimatedBackground() {
       }
     }
 
-    const checkBothReady = () => {
-      if (earthReady && satReady && !markedReady) {
+    const checkReady = () => {
+      const neededSatReady =
+        overlayCanvas.clientWidth < 1024 ? satMobileReady : satDesktopReady;
+      if (earthReady && (neededSatReady || (satDesktopReady && satMobileReady)) && !markedReady) {
         markedReady = true;
         animStartTime = performance.now();
         setLiveReady(true);
@@ -256,24 +273,32 @@ export default function HeroAnimatedBackground() {
           earthImg
         );
       }
-      checkBothReady();
+      checkReady();
     };
 
-    const onSatLoaded = () => {
-      if (satReady) return;
-      satReady = true;
-      checkBothReady();
+    const onSatDesktopLoaded = () => {
+      satDesktopReady = true;
+      checkReady();
+    };
+
+    const onSatMobileLoaded = () => {
+      satMobileReady = true;
+      checkReady();
     };
 
     earthImg.onload = onEarthLoaded;
-    satImg.onload = onSatLoaded;
+    satDesktopImg.onload = onSatDesktopLoaded;
+    satMobileImg.onload = onSatMobileLoaded;
     if (earthImg.complete && earthImg.naturalWidth > 0) onEarthLoaded();
-    if (satImg.complete && satImg.naturalWidth > 0) onSatLoaded();
+    if (satDesktopImg.complete && satDesktopImg.naturalWidth > 0)
+      onSatDesktopLoaded();
+    if (satMobileImg.complete && satMobileImg.naturalWidth > 0)
+      onSatMobileLoaded();
 
-    const twinkleStars: TwinkleStar[] = Array.from({ length: 64 }, (_, i) => ({
-      u: 0.04 + Math.random() * 0.92,
-      v: -0.18 + Math.random() * 0.62,
-      r: 0.6 + Math.random() * 1.35,
+    const twinkleStars: TwinkleStar[] = Array.from({ length: 54 }, (_, i) => ({
+      u: 0.05 + Math.random() * 0.9,
+      v: 0.02 + Math.random() * 0.25,
+      r: 0.6 + Math.random() * 1.3,
       speed: 1.1 + Math.random() * 2.1,
       phase: Math.random() * Math.PI * 2,
       gold: i % 8 === 0,
@@ -305,21 +330,10 @@ export default function HeroAnimatedBackground() {
         : null;
     resizeObserver?.observe(overlayCanvas);
 
-    // Convert normalized image UV in 1920x1080 space to exact screen pixel (matching shader's screenToRawImageUV!)
-    const imageUVToScreen = (iu: number, iv: number, mobileMode: boolean) => {
+    // Desktop UV-to-screen mapping
+    const desktopUVToScreen = (iu: number, iv: number) => {
       const imgAspect = 1920 / 1080;
       const screenAspect = width / height;
-      if (mobileMode) {
-        const spanU = 0.6;
-        const spanV = (spanU * imgAspect) / screenAspect;
-        const su = (iu - 0.045) / spanU;
-        const sv = (iv - 0.385) / spanV + 0.285;
-        return {
-          x: su * width,
-          y: sv * height,
-          pxScale: width / (spanU * 1920),
-        };
-      }
       let su = iu;
       let sv = iv;
       if (screenAspect > imgAspect) {
@@ -337,13 +351,14 @@ export default function HeroAnimatedBackground() {
     };
 
     const render = (now: number) => {
-      if (!earthReady || !satReady) {
+      const isMobile = width < 1024;
+      const activeSatReady = isMobile ? satMobileReady : satDesktopReady;
+
+      if (!earthReady || !activeSatReady) {
         rafId = window.requestAnimationFrame(render);
         return;
       }
 
-      // Match Tailwind's exact `lg:` (1024px) breakpoint so DevTools mobile/tablet viewports ALWAYS get straight vertical beam!
-      const isMobile = width < 1024;
       const t = reducedMotion
         ? 0
         : Math.max(0, (now - animStartTime) * 0.001);
@@ -357,216 +372,272 @@ export default function HeroAnimatedBackground() {
         gl.drawArrays(gl.TRIANGLES, 0, 6);
       }
 
-      // 2. Render Twinkling Stars, Scan Beam, & Floating Orbital Spacecraft
+      // 2. Render Stars, Scan Light, & Floating Spacecraft
       if (ctx2d) {
         ctx2d.clearRect(0, 0, width, height);
 
-        if (!gl || !glProgram) {
-          const topL = imageUVToScreen(0, 0, isMobile);
-          const botR = imageUVToScreen(1, 1, isMobile);
-          ctx2d.drawImage(
-            earthImg,
-            topL.x,
-            topL.y,
-            botR.x - topL.x,
-            botR.y - topL.y
-          );
-        }
-
-        // Subtle twinkling cosmic stars in the upper space sky (outside Earth's curved limb)
+        // Twinkling cosmic stars in upper sky
         for (const st of twinkleStars) {
-          const px = st.u * (1920 / 1080);
-          const py = st.v;
-          const distToEarth = Math.hypot(px - 0.0053, py - 2.9946) / 2.644;
-          if (distToEarth < 1.02) continue;
-          const pos = imageUVToScreen(st.u, st.v, isMobile);
-          if (pos.x < 0 || pos.x > width || pos.y < 0 || pos.y > height * 0.5)
-            continue;
+          const x = st.u * width;
+          const y = st.v * height;
           const alpha =
-            0.25 + 0.55 * (0.5 + 0.5 * Math.sin(t * st.speed + st.phase));
+            0.22 + 0.52 * (0.5 + 0.5 * Math.sin(t * st.speed + st.phase));
           ctx2d.beginPath();
-          ctx2d.arc(pos.x, pos.y, st.r, 0, Math.PI * 2);
+          ctx2d.arc(x, y, st.r, 0, Math.PI * 2);
           ctx2d.fillStyle = st.gold
             ? `rgba(216, 198, 75, ${alpha})`
             : `rgba(215, 238, 255, ${alpha})`;
           ctx2d.fill();
         }
 
-        // Orbital trajectory arc behind the spacecraft (100% level & symmetric on mobile!)
-        const o1 = isMobile
-          ? { x: width * 0.02, y: width < 640 ? 154 : 178 }
-          : imageUVToScreen(0.18, 0.04, false);
-        const oc = isMobile
-          ? { x: width * 0.50, y: width < 640 ? 138 : 160 }
-          : imageUVToScreen(0.60, 0.30, false);
-        const o2 = isMobile
-          ? { x: width * 0.98, y: width < 640 ? 154 : 178 }
-          : imageUVToScreen(0.99, 0.68, false);
+        if (isMobile) {
+          // =========================================================================
+          // MOBILE & TABLET (< 1024px): 100% FRONT-SYMMETRIC UPRIGHT SATELLITE
+          // + 100% STRAIGHT VERTICAL LIGHT BEAM ONTO LEVEL EARTH HORIZON!
+          // =========================================================================
+          const satBreath = 1.0 + 0.02 * Math.sin(t * 0.35);
+          const floatY = Math.sin(t * 0.42) * 4;
 
-        ctx2d.save();
-        ctx2d.beginPath();
-        ctx2d.moveTo(o1.x, o1.y);
-        ctx2d.quadraticCurveTo(oc.x, oc.y, o2.x, o2.y);
-        ctx2d.strokeStyle = isMobile
-          ? "rgba(169, 220, 235, 0.32)"
-          : "rgba(169, 220, 235, 0.22)";
-        ctx2d.lineWidth = 1.25;
-        ctx2d.setLineDash([6, 10]);
-        ctx2d.lineDashOffset = -t * 20;
-        ctx2d.stroke();
-        ctx2d.restore();
+          const drawW =
+            (width < 640
+              ? Math.min(width * 0.90, 360)
+              : Math.min(width * 0.68, 460)) * satBreath;
+          const drawH = drawW * (9 / 16);
 
-        // Exact -0.2926 rad (-16.76 deg) levels both solar wings to 0.0 deg horizontal on mobile!
-        const satOrbitX = Math.sin(t * 0.42) * (isMobile ? 4 : 24);
-        const satOrbitY = Math.sin(t * 0.31) * (isMobile ? 5 : 14);
-        const satRoll = isMobile
-          ? -0.2926 + Math.sin(t * 0.34) * 0.015
-          : Math.sin(t * 0.34) * 0.035;
-        const satBreath = 1.0 + 0.026 * Math.sin(t * 0.27);
+          const satCenterX = width * 0.5;
+          const satCenterY = (width < 640 ? 148 : 168) + floatY;
 
-        const desktopSatPivot = imageUVToScreen(0.600, 0.3185, false);
-        const mobileTargetWingSpan =
-          width < 640
-            ? Math.min(width * 0.80, 325)
-            : Math.min(width * 0.60, 440);
-        const renderScale = isMobile
-          ? (mobileTargetWingSpan / 1353) * satBreath
-          : desktopSatPivot.pxScale * satBreath;
-
-        const satCenterX = isMobile
-          ? width * 0.50 + satOrbitX
-          : desktopSatPivot.x + satOrbitX;
-        const satCenterY = isMobile
-          ? (width < 640 ? 148 : 172) + satOrbitY
-          : desktopSatPivot.y + satOrbitY;
-
-        // Beam origin: on mobile, dead-center bottom of the white dish (0.586, 0.472) so beam emerges 100% centered & straight down!
-        const dishOriginU = isMobile ? 0.586 : 0.556;
-        const dishOriginV = isMobile ? 0.472 : 0.494;
-        const srcNozzleDX = (dishOriginU - 0.600) * 1920;
-        const srcNozzleDY = (dishOriginV - 0.3185) * 1080;
-        const ndx = srcNozzleDX * renderScale;
-        const ndy = srcNozzleDY * renderScale;
-        const cosR = Math.cos(satRoll);
-        const sinR = Math.sin(satRoll);
-        const nozzleX = satCenterX + ndx * cosR - ndy * sinR;
-        const nozzleY = satCenterY + ndx * sinR + ndy * cosR;
-
-        // On mobile: target.x === nozzleX STRICTLY -> 90.0 deg laser-straight vertical light beam!
-        const sweepU = 0.355 + 0.048 * Math.sin(t * 0.44);
-        const sweepV = 0.715 + 0.036 * Math.sin(t * 0.33);
-        const target = isMobile
-          ? {
-              x: nozzleX,
-              y: nozzleY + (width < 640 ? 168 : 205),
-            }
-          : imageUVToScreen(sweepU, sweepV, false);
-        const sFactor = isMobile
-          ? Math.max(0.52, renderScale * 1.9)
-          : desktopSatPivot.pxScale;
-
-        // Volumetric Multi-Spectral Scan Cone (strictly vertical & level horizontal base on mobile!)
-        const coneAngle =
-          Math.atan2(target.y - nozzleY, target.x - nozzleX) + Math.PI / 2;
-        const footprintRadius = (isMobile ? 64 : 78) * sFactor;
-        const leftFootX = isMobile
-          ? target.x - footprintRadius
-          : target.x + Math.cos(coneAngle) * footprintRadius;
-        const leftFootY = isMobile
-          ? target.y
-          : target.y + Math.sin(coneAngle) * footprintRadius * 0.52;
-        const rightFootX = isMobile
-          ? target.x + footprintRadius
-          : target.x - Math.cos(coneAngle) * footprintRadius;
-        const rightFootY = isMobile
-          ? target.y
-          : target.y - Math.sin(coneAngle) * footprintRadius * 0.52;
-
-        const coneGrad = ctx2d.createLinearGradient(
-          nozzleX,
-          nozzleY,
-          target.x,
-          target.y
-        );
-        coneGrad.addColorStop(0, "rgba(169, 220, 235, 0.55)");
-        coneGrad.addColorStop(0.48, "rgba(28, 110, 156, 0.24)");
-        coneGrad.addColorStop(0.85, "rgba(216, 198, 75, 0.14)");
-        coneGrad.addColorStop(1, "rgba(216, 198, 75, 0.02)");
-
-        ctx2d.beginPath();
-        ctx2d.moveTo(nozzleX, nozzleY);
-        ctx2d.lineTo(leftFootX, leftFootY);
-        ctx2d.lineTo(rightFootX, rightFootY);
-        ctx2d.closePath();
-        ctx2d.fillStyle = coneGrad;
-        ctx2d.fill();
-
-        // Center telemetry beam + descending golden/cyan data pulses (strictly vertical on mobile!)
-        ctx2d.save();
-        ctx2d.beginPath();
-        ctx2d.moveTo(nozzleX, nozzleY);
-        ctx2d.lineTo(target.x, target.y);
-        ctx2d.strokeStyle = "rgba(169, 220, 235, 0.48)";
-        ctx2d.lineWidth = 1.4;
-        ctx2d.setLineDash([5, 8]);
-        ctx2d.lineDashOffset = -t * 44;
-        ctx2d.stroke();
-        ctx2d.restore();
-
-        for (let p = 0; p < 3; p++) {
-          const prog = (t * 0.46 + p / 3) % 1;
-          const px = nozzleX + (target.x - nozzleX) * prog;
-          const py = nozzleY + (target.y - nozzleY) * prog;
-          ctx2d.beginPath();
-          ctx2d.arc(px, py, 3.0 * sFactor, 0, Math.PI * 2);
-          ctx2d.fillStyle =
-            p % 2 === 0
-              ? `rgba(216, 198, 75, ${0.95 - prog * 0.55})`
-              : `rgba(169, 220, 235, ${0.95 - prog * 0.55})`;
-          ctx2d.fill();
-        }
-
-        // Expanding concentric radar scan ellipses (0 deg level horizontal on mobile!)
-        for (let ring = 0; ring < 3; ring++) {
-          const rp = (t * 0.38 + ring / 3) % 1;
-          const rx = (16 + rp * 74) * sFactor;
-          const ry = rx * 0.45;
-          const alpha = (1 - rp) * 0.62;
-
+          // Symmetric orbital dashed arc level across top
           ctx2d.save();
-          ctx2d.translate(target.x, target.y);
-          ctx2d.rotate(isMobile ? 0 : -0.2);
           ctx2d.beginPath();
-          ctx2d.ellipse(0, 0, rx, ry, 0, 0, Math.PI * 2);
-          ctx2d.strokeStyle =
-            ring === 0
-              ? `rgba(216, 198, 75, ${alpha})`
-              : `rgba(169, 220, 235, ${alpha})`;
-          ctx2d.lineWidth = 1.6;
+          ctx2d.moveTo(width * 0.03, satCenterY + 6);
+          ctx2d.quadraticCurveTo(
+            width * 0.5,
+            satCenterY - 12,
+            width * 0.97,
+            satCenterY + 6
+          );
+          ctx2d.strokeStyle = "rgba(169, 220, 235, 0.30)";
+          ctx2d.lineWidth = 1.2;
+          ctx2d.setLineDash([6, 10]);
+          ctx2d.lineDashOffset = -t * 18;
           ctx2d.stroke();
           ctx2d.restore();
-        }
 
-        // Draw the Surgical Isolated Spacecraft Layer floating & orbiting above Earth!
-        const natW = satImg.naturalWidth || 1920;
-        const natH = satImg.naturalHeight || 1080;
-        const srcPivotX = 0.600 * natW;
-        const srcPivotY = 0.3185 * natH;
-        const scaleRatioX = 1920 / natW;
-        const scaleRatioY = 1080 / natH;
+          // Exact 6-o'clock feedhorn tip at (u=0.500, v=0.832) -> 100.0% centered & straight down!
+          const nozzleX = width * 0.5;
+          const nozzleY = satCenterY + (0.832 - 0.5) * drawH;
+          const targetX = nozzleX;
+          const targetY = nozzleY + (width < 640 ? 124 : 148);
+          const footR = width < 640 ? 38 : 48;
 
-        ctx2d.save();
-        ctx2d.translate(satCenterX, satCenterY);
-        ctx2d.rotate(satRoll);
-        ctx2d.scale(renderScale * scaleRatioX, renderScale * scaleRatioY);
+          // Straight Symmetric Vertical Light Cone
+          const coneGrad = ctx2d.createLinearGradient(
+            nozzleX,
+            nozzleY - 4,
+            targetX,
+            targetY
+          );
+          coneGrad.addColorStop(0, "rgba(169, 220, 235, 0.62)");
+          coneGrad.addColorStop(0.52, "rgba(28, 110, 156, 0.26)");
+          coneGrad.addColorStop(0.88, "rgba(216, 198, 75, 0.14)");
+          coneGrad.addColorStop(1, "rgba(216, 198, 75, 0.02)");
 
-        ctx2d.shadowColor = "rgba(3, 12, 30, 0.72)";
-        ctx2d.shadowBlur = isMobile ? 14 : 20;
-        ctx2d.drawImage(satImg, -srcPivotX, -srcPivotY, natW, natH);
-        ctx2d.restore();
+          ctx2d.beginPath();
+          ctx2d.moveTo(nozzleX, nozzleY - 4);
+          ctx2d.lineTo(targetX - footR, targetY);
+          ctx2d.lineTo(targetX + footR, targetY);
+          ctx2d.closePath();
+          ctx2d.fillStyle = coneGrad;
+          ctx2d.fill();
 
-        // Subtle sensor feedhorn glow on desktop (on mobile, beam already emerges cleanly from behind dish rim)
-        if (!isMobile) {
+          // Straight 90-degree Vertical Telemetry Line
+          ctx2d.save();
+          ctx2d.beginPath();
+          ctx2d.moveTo(nozzleX, nozzleY);
+          ctx2d.lineTo(targetX, targetY);
+          ctx2d.strokeStyle = "rgba(169, 220, 235, 0.52)";
+          ctx2d.lineWidth = 1.5;
+          ctx2d.setLineDash([5, 7]);
+          ctx2d.lineDashOffset = -t * 40;
+          ctx2d.stroke();
+          ctx2d.restore();
+
+          // Straight Descending Data Pulses
+          for (let p = 0; p < 3; p++) {
+            const prog = (t * 0.46 + p / 3) % 1;
+            const py = nozzleY + (targetY - nozzleY) * prog;
+            ctx2d.beginPath();
+            ctx2d.arc(nozzleX, py, 2.6, 0, Math.PI * 2);
+            ctx2d.fillStyle =
+              p % 2 === 0
+                ? `rgba(216, 198, 75, ${0.95 - prog * 0.55})`
+                : `rgba(169, 220, 235, ${0.95 - prog * 0.55})`;
+            ctx2d.fill();
+          }
+
+          // Level Horizontal Radar Scan Ellipses (0 deg rotation!)
+          for (let ring = 0; ring < 3; ring++) {
+            const rp = (t * 0.38 + ring / 3) % 1;
+            const rx = 12 + rp * (footR + 8);
+            const ry = rx * 0.38;
+            const alpha = (1 - rp) * 0.62;
+
+            ctx2d.beginPath();
+            ctx2d.ellipse(targetX, targetY, rx, ry, 0, 0, Math.PI * 2);
+            ctx2d.strokeStyle =
+              ring === 0
+                ? `rgba(216, 198, 75, ${alpha})`
+                : `rgba(169, 220, 235, ${alpha})`;
+            ctx2d.lineWidth = 1.5;
+            ctx2d.stroke();
+          }
+
+          // Draw Front-Symmetric Mobile Spacecraft Centered & Level (0 deg tilt!)
+          ctx2d.save();
+          ctx2d.shadowColor = "rgba(3, 12, 30, 0.72)";
+          ctx2d.shadowBlur = 14;
+          ctx2d.drawImage(
+            satMobileImg,
+            satCenterX - drawW / 2,
+            satCenterY - drawH / 2,
+            drawW,
+            drawH
+          );
+          ctx2d.restore();
+        } else {
+          // =========================================================================
+          // DESKTOP (>= 1024px): CINEMATIC ORBITAL SPACECRAFT & INDIA TELEMETRY BEAM
+          // =========================================================================
+          const o1 = desktopUVToScreen(0.18, 0.04);
+          const oc = desktopUVToScreen(0.6, 0.3);
+          const o2 = desktopUVToScreen(0.99, 0.68);
+
+          ctx2d.save();
+          ctx2d.beginPath();
+          ctx2d.moveTo(o1.x, o1.y);
+          ctx2d.quadraticCurveTo(oc.x, oc.y, o2.x, o2.y);
+          ctx2d.strokeStyle = "rgba(169, 220, 235, 0.22)";
+          ctx2d.lineWidth = 1.25;
+          ctx2d.setLineDash([6, 10]);
+          ctx2d.lineDashOffset = -t * 20;
+          ctx2d.stroke();
+          ctx2d.restore();
+
+          const satOrbitX = Math.sin(t * 0.42) * 24;
+          const satOrbitY = Math.sin(t * 0.31) * 14;
+          const satRoll = Math.sin(t * 0.34) * 0.035;
+          const satBreath = 1.0 + 0.026 * Math.sin(t * 0.27);
+
+          const desktopSatPivot = desktopUVToScreen(0.6, 0.3185);
+          const renderScale = desktopSatPivot.pxScale * satBreath;
+          const satCenterX = desktopSatPivot.x + satOrbitX;
+          const satCenterY = desktopSatPivot.y + satOrbitY;
+
+          const srcNozzleDX = (0.556 - 0.6) * 1920;
+          const srcNozzleDY = (0.494 - 0.3185) * 1080;
+          const ndx = srcNozzleDX * renderScale;
+          const ndy = srcNozzleDY * renderScale;
+          const cosR = Math.cos(satRoll);
+          const sinR = Math.sin(satRoll);
+          const nozzleX = satCenterX + ndx * cosR - ndy * sinR;
+          const nozzleY = satCenterY + ndx * sinR + ndy * cosR;
+
+          const sweepU = 0.355 + 0.048 * Math.sin(t * 0.44);
+          const sweepV = 0.715 + 0.036 * Math.sin(t * 0.33);
+          const target = desktopUVToScreen(sweepU, sweepV);
+          const sFactor = desktopSatPivot.pxScale;
+
+          const coneAngle =
+            Math.atan2(target.y - nozzleY, target.x - nozzleX) + Math.PI / 2;
+          const footprintRadius = 78 * sFactor;
+          const leftFootX = target.x + Math.cos(coneAngle) * footprintRadius;
+          const leftFootY =
+            target.y + Math.sin(coneAngle) * footprintRadius * 0.52;
+          const rightFootX = target.x - Math.cos(coneAngle) * footprintRadius;
+          const rightFootY =
+            target.y - Math.sin(coneAngle) * footprintRadius * 0.52;
+
+          const coneGrad = ctx2d.createLinearGradient(
+            nozzleX,
+            nozzleY,
+            target.x,
+            target.y
+          );
+          coneGrad.addColorStop(0, "rgba(169, 220, 235, 0.52)");
+          coneGrad.addColorStop(0.48, "rgba(28, 110, 156, 0.22)");
+          coneGrad.addColorStop(0.85, "rgba(216, 198, 75, 0.14)");
+          coneGrad.addColorStop(1, "rgba(216, 198, 75, 0.02)");
+
+          ctx2d.beginPath();
+          ctx2d.moveTo(nozzleX, nozzleY);
+          ctx2d.lineTo(leftFootX, leftFootY);
+          ctx2d.lineTo(rightFootX, rightFootY);
+          ctx2d.closePath();
+          ctx2d.fillStyle = coneGrad;
+          ctx2d.fill();
+
+          ctx2d.save();
+          ctx2d.beginPath();
+          ctx2d.moveTo(nozzleX, nozzleY);
+          ctx2d.lineTo(target.x, target.y);
+          ctx2d.strokeStyle = "rgba(169, 220, 235, 0.45)";
+          ctx2d.lineWidth = 1.3;
+          ctx2d.setLineDash([5, 8]);
+          ctx2d.lineDashOffset = -t * 44;
+          ctx2d.stroke();
+          ctx2d.restore();
+
+          for (let p = 0; p < 3; p++) {
+            const prog = (t * 0.46 + p / 3) % 1;
+            const px = nozzleX + (target.x - nozzleX) * prog;
+            const py = nozzleY + (target.y - nozzleY) * prog;
+            ctx2d.beginPath();
+            ctx2d.arc(px, py, 3.0 * sFactor, 0, Math.PI * 2);
+            ctx2d.fillStyle =
+              p % 2 === 0
+                ? `rgba(216, 198, 75, ${0.95 - prog * 0.55})`
+                : `rgba(169, 220, 235, ${0.95 - prog * 0.55})`;
+            ctx2d.fill();
+          }
+
+          for (let ring = 0; ring < 3; ring++) {
+            const rp = (t * 0.38 + ring / 3) % 1;
+            const rx = (16 + rp * 74) * sFactor;
+            const ry = rx * 0.48;
+            const alpha = (1 - rp) * 0.62;
+
+            ctx2d.save();
+            ctx2d.translate(target.x, target.y);
+            ctx2d.rotate(-0.2);
+            ctx2d.beginPath();
+            ctx2d.ellipse(0, 0, rx, ry, 0, 0, Math.PI * 2);
+            ctx2d.strokeStyle =
+              ring === 0
+                ? `rgba(216, 198, 75, ${alpha})`
+                : `rgba(169, 220, 235, ${alpha})`;
+            ctx2d.lineWidth = 1.6;
+            ctx2d.stroke();
+            ctx2d.restore();
+          }
+
+          const natW = satDesktopImg.naturalWidth || 1920;
+          const natH = satDesktopImg.naturalHeight || 1080;
+          const srcPivotX = 0.6 * natW;
+          const srcPivotY = 0.3185 * natH;
+          const scaleRatioX = 1920 / natW;
+          const scaleRatioY = 1080 / natH;
+
+          ctx2d.save();
+          ctx2d.translate(satCenterX, satCenterY);
+          ctx2d.rotate(satRoll);
+          ctx2d.scale(renderScale * scaleRatioX, renderScale * scaleRatioY);
+
+          ctx2d.shadowColor = "rgba(3, 12, 30, 0.72)";
+          ctx2d.shadowBlur = 20;
+          ctx2d.drawImage(satDesktopImg, -srcPivotX, -srcPivotY, natW, natH);
+          ctx2d.restore();
+
           const lensGlow = ctx2d.createRadialGradient(
             nozzleX,
             nozzleY,
@@ -617,7 +688,7 @@ export default function HeroAnimatedBackground() {
           className="hidden lg:block w-full h-full object-cover object-[46%_46%]"
         />
 
-        {/* Mobile/Tablet SSR Earth + Level Horizontal Satellite */}
+        {/* Mobile/Tablet SSR Level Horizon Earth + Front-Symmetric Straight Satellite */}
         <div className="lg:hidden absolute inset-0 bg-gradient-to-b from-[#030916] via-[#041126] to-[#0B2852]">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
@@ -626,17 +697,17 @@ export default function HeroAnimatedBackground() {
             fetchPriority="high"
             loading="eager"
             decoding="sync"
-            className="absolute top-[152px] sm:top-[172px] -left-[7.5%] w-[166.7%] max-w-none h-auto"
+            className="absolute top-[168px] sm:top-[188px] -left-[22%] w-[180%] max-w-none h-auto -rotate-[13.4deg]"
           />
-          <div className="absolute inset-x-0 top-[148px] sm:top-[168px] h-14 bg-gradient-to-b from-[#030916] to-transparent" />
+          <div className="absolute inset-x-0 top-[140px] sm:top-[160px] h-20 bg-gradient-to-b from-[#030916] to-transparent" />
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
-            src="/images/hero-v2-satellite.webp"
+            src="/images/hero-v2-satellite-mobile.webp"
             alt=""
             fetchPriority="high"
             loading="eager"
             decoding="sync"
-            className="absolute top-[74px] sm:top-[84px] left-1/2 -translate-x-1/2 -rotate-[16.8deg] w-[80vw] max-w-[430px] h-auto object-contain"
+            className="absolute top-[64px] sm:top-[74px] left-1/2 -translate-x-1/2 w-[90vw] max-w-[360px] sm:max-w-[460px] h-auto object-contain"
           />
         </div>
       </div>
