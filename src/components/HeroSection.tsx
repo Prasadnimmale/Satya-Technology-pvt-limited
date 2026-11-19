@@ -7,8 +7,14 @@ import HeroAnimatedBackground from "./HeroAnimatedBackground";
 
 export default function HeroSection() {
   // Preload Hero Space+Satellite layers in <head> alongside Navbar so Hero paints at 0ms with zero delay
-  preload("/images/hero-v2-poster.webp", { as: "image", fetchPriority: "high" });
-  preload("/images/hero-v2-earth.webp", { as: "image", fetchPriority: "high" });
+  preload("/images/hero-v2-poster.webp?v=2", {
+    as: "image",
+    fetchPriority: "high",
+  });
+  preload("/images/hero-v2-earth.webp?v=2", {
+    as: "image",
+    fetchPriority: "high",
+  });
   preload("/images/hero-v2-satellite.webp", {
     as: "image",
     fetchPriority: "high",
