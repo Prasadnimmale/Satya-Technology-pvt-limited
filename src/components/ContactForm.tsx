@@ -11,7 +11,7 @@ export default function ContactForm() {
     organization: "",
     email: "",
     phone: "",
-    platform: "Sathya-MDA (Maritime Domain Awareness)",
+    platform: "",
     deployment: "Scalable SaaS Platform",
     message: "",
   });
@@ -34,7 +34,10 @@ export default function ContactForm() {
           Thank You, {formData.fullName || "Partner"}
         </h3>
         <p className="text-sm sm:text-base text-[#D4E0EF] max-w-lg mx-auto leading-relaxed">
-          Your inquiry regarding <strong className="text-white">{formData.platform}</strong>{" "}
+          Your inquiry regarding{" "}
+          <strong className="text-white">
+            {formData.platform || "SpaceTech & Geospatial Solutions"}
+          </strong>{" "}
           ({formData.deployment}) has been formatted. Connect directly with our
           executive team at{" "}
           <a
@@ -50,9 +53,13 @@ export default function ContactForm() {
         <div className="pt-3 flex flex-wrap items-center justify-center gap-3">
           <a
             href={`mailto:CEO@sathyatechnologyservices.com?subject=${encodeURIComponent(
-              `Platform Briefing Inquiry: ${formData.platform} — ${formData.organization}`
+              `Platform Briefing Inquiry: ${
+                formData.platform || "SpaceTech & Geospatial Solutions"
+              } — ${formData.organization}`
             )}&body=${encodeURIComponent(
-              `Name: ${formData.fullName}\nOrganization: ${formData.organization}\nEmail: ${formData.email}\nPhone: ${formData.phone}\nPlatform of Interest: ${formData.platform}\nPreferred Deployment: ${formData.deployment}\n\nMission Requirements:\n${formData.message}`
+              `Name: ${formData.fullName}\nOrganization: ${formData.organization}\nEmail: ${formData.email}\nPhone: ${formData.phone}\nPlatform of Interest: ${
+                formData.platform || "SpaceTech & Geospatial Solutions"
+              }\nPreferred Deployment: ${formData.deployment}\n\nMission Requirements:\n${formData.message}`
             )}`}
             className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-[#D8C64B] text-[#0B2852] font-semibold text-sm hover:bg-[#e5d45c] transition-colors"
           >
@@ -187,17 +194,32 @@ export default function ContactForm() {
             onChange={(e) =>
               setFormData({ ...formData, platform: e.target.value })
             }
-            className="w-full px-4 py-3 rounded-xl bg-[#0B2852] border border-[#A9DCEB]/25 text-white text-sm focus:outline-none focus:border-[#D8C64B]"
+            className={`w-full px-4 py-3 rounded-xl bg-[#0B2852] border border-[#A9DCEB]/25 text-sm focus:outline-none focus:border-[#D8C64B] ${
+              formData.platform ? "text-white" : "text-[#D4E0EF]/60"
+            }`}
           >
+            <option value="" disabled className="bg-[#071B38] text-[#D4E0EF]/60">
+              Select Platform
+            </option>
             {TURNKEY_PLATFORMS.map((p) => (
-              <option key={p.id} value={`${p.code} (${p.name})`}>
+              <option
+                key={p.id}
+                value={`${p.code} (${p.name})`}
+                className="bg-[#0B2852] text-white"
+              >
                 {p.code} — {p.name}
               </option>
             ))}
-            <option value="SpaceTech Consulting & OEM Manufacturing">
+            <option
+              value="SpaceTech Consulting & OEM Manufacturing"
+              className="bg-[#0B2852] text-white"
+            >
               SpaceTech Consulting &amp; Atmanirbhar Bharat OEM
             </option>
-            <option value="Satellite Imagery & Multi-Sensor Analytics">
+            <option
+              value="Satellite Imagery & Multi-Sensor Analytics"
+              className="bg-[#0B2852] text-white"
+            >
               Satellite Imagery &amp; Multi-Sensor Analytics
             </option>
           </select>
