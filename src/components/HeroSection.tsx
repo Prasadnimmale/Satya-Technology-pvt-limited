@@ -71,6 +71,7 @@ export default function HeroSection() {
               className="inline-flex items-center justify-center gap-2.5 px-6 sm:px-7 py-3.5 sm:py-4 rounded-xl bg-[#0B2852]/85 hover:bg-[#123D70] border border-[#A9DCEB]/45 hover:border-[#D8C64B]/65 text-white font-semibold text-sm sm:text-base backdrop-blur-md transition-all hover:-translate-y-0.5"
             >
               Contact Us
+              <ArrowRight className="w-5 h-5 text-[#D8C64B]" />
             </Link>
           </div>
         </div>
