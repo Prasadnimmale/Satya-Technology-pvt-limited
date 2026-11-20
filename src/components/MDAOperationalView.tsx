@@ -135,12 +135,12 @@ export default function MDAOperationalView() {
           </svg>
 
           {/* Brochure IMO Search Pill (Visual Representation) */}
-          <div className="absolute top-5 left-1/2 -translate-x-1/2 z-20 w-64 sm:w-80 px-4 py-2 rounded-xl bg-white/92 text-[#0B2852] shadow-xl flex items-center justify-between text-xs sm:text-sm font-medium">
-            <span className="inline-flex items-center gap-2 text-[#123D70]">
-              <Search className="w-4 h-4 text-[#1C6E9C]" />
-              IMO / MMSI / Dark Target Correlation
+          <div className="absolute top-3.5 sm:top-5 left-1/2 -translate-x-1/2 z-20 w-[calc(100%-1.5rem)] max-w-xs sm:w-80 px-3 sm:px-4 py-2 rounded-xl bg-white/92 text-[#0B2852] shadow-xl flex items-center justify-between gap-2 text-[11px] sm:text-sm font-medium">
+            <span className="inline-flex items-center gap-1.5 sm:gap-2 text-[#123D70] truncate">
+              <Search className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#1C6E9C] flex-shrink-0" />
+              <span className="truncate">IMO / MMSI / Dark Target Correlation</span>
             </span>
-            <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-[#0B2852] text-[#D8C64B]">
+            <span className="text-[9.5px] sm:text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-[#0B2852] text-[#D8C64B] flex-shrink-0">
               LIVE AI
             </span>
           </div>

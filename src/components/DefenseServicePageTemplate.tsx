@@ -119,22 +119,22 @@ export default function DefenseServicePageTemplate({
           </div>
 
           {/* Kicker + Heading + Subtitle FIRST */}
-          <div className="max-w-4xl mx-auto text-center space-y-4">
-            <div className="inline-flex items-center gap-2.5 px-4 py-1.5 rounded-full bg-[#123D70] border border-[#D8C64B]/50">
-              <span className="text-xs font-bold text-[#D8C64B]">
+          <div className="max-w-4xl mx-auto text-center space-y-3.5 sm:space-y-4">
+            <div className="inline-flex max-w-full items-center justify-center gap-2 px-3 sm:px-4 py-1.5 rounded-2xl sm:rounded-full bg-[#123D70] border border-[#D8C64B]/50">
+              <span className="text-xs font-bold text-[#D8C64B] flex-shrink-0">
                 {service.indexNumber}
               </span>
-              <span className="w-1 h-1 rounded-full bg-[#A9DCEB]" />
-              <span className="text-[11px] sm:text-xs font-semibold uppercase tracking-[0.18em] text-[#D8C64B]">
+              <span className="w-1 h-1 rounded-full bg-[#A9DCEB] flex-shrink-0" />
+              <span className="text-[10px] sm:text-xs font-semibold uppercase tracking-[0.11em] sm:tracking-[0.18em] text-[#D8C64B] leading-snug">
                 {service.platformTag}
               </span>
             </div>
 
-            <h1 className="text-3xl sm:text-5xl lg:text-6xl font-bold text-white tracking-tight leading-[1.12]">
+            <h1 className="text-2xl sm:text-5xl lg:text-6xl font-bold text-white tracking-tight leading-[1.16] sm:leading-[1.12]">
               {service.title}
             </h1>
 
-            <p className="text-lg sm:text-2xl font-medium text-[#D8C64B] leading-snug max-w-3xl mx-auto">
+            <p className="text-base sm:text-2xl font-medium text-[#D8C64B] leading-snug max-w-3xl mx-auto">
               {service.subtitle}
             </p>
           </div>
@@ -487,33 +487,33 @@ export default function DefenseServicePageTemplate({
       </section>
 
       {/* 7. REQUEST A DEMO CTA */}
-      <section className="py-20 sm:py-24 bg-[#071B38] border-t border-[#A9DCEB]/20 relative overflow-hidden">
+      <section className="py-14 sm:py-24 bg-[#071B38] border-t border-[#A9DCEB]/20 relative overflow-hidden">
         <div className="absolute inset-0 orbital-grid opacity-30 pointer-events-none" />
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative">
-          <div className="brochure-frame rounded-3xl bg-gradient-to-r from-[#0B2852] via-[#123D70] to-[#0B2852] p-8 sm:p-12 lg:p-14 relative overflow-hidden">
+          <div className="brochure-frame rounded-2xl sm:rounded-3xl bg-gradient-to-r from-[#0B2852] via-[#123D70] to-[#0B2852] p-5 sm:p-12 lg:p-14 relative overflow-hidden">
             <div className="absolute -right-20 -top-20 w-96 h-96 rounded-full bg-[#1C6E9C]/35 blur-3xl pointer-events-none" />
 
-            <div className="relative flex flex-col lg:flex-row lg:items-center justify-between gap-8">
-              <div className="max-w-2xl space-y-4">
-                <span className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#071B38]/85 border border-[#D8C64B]/45 text-xs font-semibold uppercase tracking-[0.18em] text-[#D8C64B]">
+            <div className="relative flex flex-col lg:flex-row lg:items-center justify-between gap-6 sm:gap-8">
+              <div className="max-w-2xl space-y-3.5 sm:space-y-4">
+                <span className="inline-flex max-w-full items-center gap-2 px-3 sm:px-3.5 py-1.5 rounded-2xl sm:rounded-full bg-[#071B38]/85 border border-[#D8C64B]/45 text-[10px] sm:text-xs font-semibold uppercase tracking-[0.12em] sm:tracking-[0.18em] text-[#D8C64B] leading-snug">
                   {service.platformTag}
                 </span>
-                <h2 className="text-3xl sm:text-4xl font-bold text-white leading-tight">
+                <h2 className="text-2xl sm:text-4xl font-bold text-white leading-snug sm:leading-tight">
                   Ready to Experience{" "}
                   <span className="text-[#D8C64B]">{service.title}</span> in
                   Action?
                 </h2>
-                <p className="text-base sm:text-lg text-[#D4E0EF] leading-relaxed">
+                <p className="text-sm sm:text-lg text-[#D4E0EF] leading-relaxed">
                   Connect with Sathya Technology Services&apos; space scientists
                   and geospatial engineers for a tailored briefing and platform
                   demonstration.
                 </p>
               </div>
 
-              <div className="flex flex-wrap items-center gap-4">
+              <div className="flex flex-col sm:flex-row sm:flex-wrap items-stretch sm:items-center gap-3.5 sm:gap-4">
                 <Link
                   href={`/contact?service=${encodeURIComponent(service.title)}`}
-                  className="inline-flex items-center gap-2.5 px-7 py-4 rounded-xl bg-[#D8C64B] hover:bg-[#e5d45c] text-[#0B2852] font-semibold text-base shadow-[0_0_28px_rgba(216,198,75,0.35)] transition-all hover:-translate-y-0.5"
+                  className="inline-flex items-center justify-center gap-2.5 px-6 sm:px-7 py-3.5 sm:py-4 rounded-xl bg-[#D8C64B] hover:bg-[#e5d45c] text-[#0B2852] font-semibold text-sm sm:text-base shadow-[0_0_28px_rgba(216,198,75,0.35)] transition-all sm:hover:-translate-y-0.5"
                 >
                   Request a Demo
                   <ArrowRight className="w-5 h-5" />
@@ -521,7 +521,7 @@ export default function DefenseServicePageTemplate({
 
                 <Link
                   href={sectorHref}
-                  className="inline-flex items-center gap-2 px-6 py-4 rounded-xl bg-[#071B38]/85 hover:bg-[#0B2852] border border-[#A9DCEB]/35 text-white font-semibold text-base transition-all"
+                  className="inline-flex items-center justify-center gap-2 px-6 py-3.5 sm:py-4 rounded-xl bg-[#071B38]/85 hover:bg-[#0B2852] border border-[#A9DCEB]/35 text-white font-semibold text-sm sm:text-base transition-all"
                 >
                   <ArrowLeft className="w-4 h-4 text-[#D8C64B]" />
                   Back to {sectorShortLabel}
