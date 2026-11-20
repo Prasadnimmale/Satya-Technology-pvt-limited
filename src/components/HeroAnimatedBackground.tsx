@@ -409,7 +409,7 @@ export default function HeroAnimatedBackground() {
           ? width * 0.52 + satOrbitX
           : desktopSatPivot.x + satOrbitX;
         const satCenterY = isMobile
-          ? (width < 640 ? 180 : 204) + satOrbitY
+          ? (width < 640 ? 186 : 208) + satOrbitY
           : desktopSatPivot.y + satOrbitY;
 
         // Exact parabolic dish feedhorn tip (0.556, 0.494) in 1920x1080 space
@@ -593,7 +593,7 @@ export default function HeroAnimatedBackground() {
             fetchPriority="high"
             loading="eager"
             decoding="sync"
-            className="absolute top-[102px] sm:top-[112px] left-[52%] -translate-x-1/2 w-[84vw] max-w-[440px] h-auto object-contain"
+            className="absolute top-[108px] sm:top-[116px] left-[52%] -translate-x-1/2 w-[84vw] max-w-[440px] h-auto object-contain"
           />
         </div>
       </div>

@@ -128,13 +128,17 @@ export default function Navbar() {
     >
       {/* Subtle Top Orbital Telemetry Bar — Visible on Mobile, Tablet & Desktop */}
       <div className="block bg-[#071B38]/95 border-b border-[#A9DCEB]/12">
-        <div className="max-w-7xl mx-auto px-3 sm:px-6 py-1.5 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-0.5 sm:gap-1 lg:gap-4 text-[9.5px] sm:text-[11px] text-[#D4E0EF]">
-          <div className="flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-0.5 sm:gap-2.5 lg:gap-4 text-center sm:text-left min-w-0">
-            <span className="inline-flex items-center justify-center sm:justify-start gap-1.5 text-[#D8C64B] font-semibold sm:font-medium tracking-[0.06em] sm:tracking-wider uppercase leading-tight">
-              <span className="w-1.5 h-1.5 rounded-full bg-[#D8C64B] flex-shrink-0" />
-              <span>Est. 1997 • Pioneers in SpaceTech Consulting</span>
-            </span>
-            <span className="hidden sm:inline text-[#A9DCEB]/40">|</span>
+        <div className="max-w-7xl mx-auto px-3 sm:px-6 py-1.5 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-1 lg:gap-4 text-[9.5px] sm:text-[11px] text-[#D4E0EF]">
+          <div className="flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-1 sm:gap-2.5 lg:gap-3.5 text-center sm:text-left min-w-0">
+            <Link
+              href="/about"
+              onClick={closeMenus}
+              className="inline-flex max-w-full items-center justify-center gap-1.5 px-2.5 sm:px-3 py-0.5 sm:py-1 rounded-full bg-[#0B2852]/95 hover:bg-[#123D70] border border-[#D8C64B]/55 hover:border-[#D8C64B] shadow-[0_0_16px_rgba(216,198,75,0.18)] text-[#D8C64B] font-semibold tracking-[0.05em] sm:tracking-wider uppercase leading-tight transition-all"
+            >
+              <span className="w-1.5 h-1.5 rounded-full bg-[#D8C64B] animate-pulse flex-shrink-0" />
+              <span className="truncate">Est. 1997 • Pioneers in SpaceTech Consulting</span>
+            </Link>
+            <span className="hidden sm:inline text-[#A9DCEB]/35">|</span>
             <span className="text-[#D4E0EF]/95 leading-tight">
               Space Technology • Artificial Intelligence • Geospatial Intelligence
             </span>

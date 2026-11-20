@@ -21,7 +21,7 @@ export default function HeroSection() {
   });
 
   return (
-    <section className="relative min-h-[92vh] lg:min-h-[94vh] flex flex-col justify-between pt-[106px] sm:pt-[112px] lg:pt-36 pb-10 sm:pb-14 overflow-hidden bg-[#041126]">
+    <section className="relative min-h-[92vh] lg:min-h-[94vh] flex flex-col justify-between pt-[114px] sm:pt-[118px] lg:pt-36 pb-10 sm:pb-14 overflow-hidden bg-[#041126]">
       {/* Animated Orbital Satellite & Earth Video-Motion Background */}
       <HeroAnimatedBackground />
 
