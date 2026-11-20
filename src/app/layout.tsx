@@ -46,9 +46,11 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className={`${fallbackSans.variable} antialiased`}>
-      <body className="min-h-screen flex flex-col bg-[#0B2852] text-white selection:bg-[#D8C64B] selection:text-[#0B2852]">
+      <body className="min-h-screen w-full max-w-full overflow-x-clip flex flex-col bg-[#0B2852] text-white selection:bg-[#D8C64B] selection:text-[#0B2852]">
         <Navbar />
-        <main className="flex-1">{children}</main>
+        <main className="flex-1 w-full min-w-0 max-w-full overflow-x-clip">
+          {children}
+        </main>
         <Footer />
       </body>
     </html>
