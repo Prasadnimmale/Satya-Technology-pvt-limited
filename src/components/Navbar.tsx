@@ -126,20 +126,20 @@ export default function Navbar() {
           : "bg-[#0B2852]/82 backdrop-blur-md border-b border-[#A9DCEB]/12"
       }`}
     >
-      {/* Subtle Top Orbital Telemetry Bar */}
-      <div className="hidden lg:block bg-[#071B38]/90 border-b border-[#A9DCEB]/10">
-        <div className="max-w-7xl mx-auto px-6 py-1.5 flex items-center justify-between text-[11px] text-[#D4E0EF]">
-          <div className="flex items-center gap-4">
-            <span className="inline-flex items-center gap-1.5 text-[#D8C64B] font-medium tracking-wider uppercase">
-              <span className="w-1.5 h-1.5 rounded-full bg-[#D8C64B]" />
-              Est. 1997 • Pioneers in SpaceTech Consulting
+      {/* Subtle Top Orbital Telemetry Bar — Visible on Mobile, Tablet & Desktop */}
+      <div className="block bg-[#071B38]/95 border-b border-[#A9DCEB]/12">
+        <div className="max-w-7xl mx-auto px-3 sm:px-6 py-1.5 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-0.5 sm:gap-1 lg:gap-4 text-[9.5px] sm:text-[11px] text-[#D4E0EF]">
+          <div className="flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-0.5 sm:gap-2.5 lg:gap-4 text-center sm:text-left min-w-0">
+            <span className="inline-flex items-center justify-center sm:justify-start gap-1.5 text-[#D8C64B] font-semibold sm:font-medium tracking-[0.06em] sm:tracking-wider uppercase leading-tight">
+              <span className="w-1.5 h-1.5 rounded-full bg-[#D8C64B] flex-shrink-0" />
+              <span>Est. 1997 • Pioneers in SpaceTech Consulting</span>
             </span>
-            <span className="text-[#A9DCEB]/40">|</span>
-            <span className="text-[#D4E0EF]/90">
+            <span className="hidden sm:inline text-[#A9DCEB]/40">|</span>
+            <span className="text-[#D4E0EF]/95 leading-tight">
               Space Technology • Artificial Intelligence • Geospatial Intelligence
             </span>
           </div>
-          <div className="flex items-center gap-5">
+          <div className="hidden lg:flex items-center gap-5 flex-shrink-0">
             <a
               href="mailto:CEO@sathyatechnologyservices.com"
               className="hover:text-[#D8C64B] transition-colors"
@@ -160,7 +160,7 @@ export default function Navbar() {
       {/* Main Navigation Row */}
       <nav
         aria-label="Primary Navigation"
-        className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between gap-4"
+        className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 sm:h-20 flex items-center justify-between gap-4"
       >
         <Link href="/" onClick={closeMenus} className="focus:outline-none">
           <BrandLogo />

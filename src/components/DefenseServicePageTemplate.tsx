@@ -79,7 +79,7 @@ export default function DefenseServicePageTemplate({
   return (
     <>
       {/* 1. TOP HEADER BLOCK + SEAMLESS IMAGE BELOW SUBTITLE + INTRO & CTAS */}
-      <section className="relative pt-28 lg:pt-36 pb-16 bg-[#0B2852] border-b border-[#A9DCEB]/15 overflow-hidden">
+      <section className="relative pt-32 lg:pt-36 pb-16 bg-[#0B2852] border-b border-[#A9DCEB]/15 overflow-hidden">
         <div className="absolute inset-0 orbital-grid opacity-30 pointer-events-none" />
         <div className="absolute top-40 left-1/2 -translate-x-1/2 w-[680px] h-[420px] rounded-full bg-[#123D70]/55 blur-[120px] pointer-events-none" />
 

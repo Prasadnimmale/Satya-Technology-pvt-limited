@@ -21,13 +21,13 @@ export default function HeroSection() {
   });
 
   return (
-    <section className="relative min-h-[92vh] lg:min-h-[94vh] flex flex-col justify-between pt-20 lg:pt-36 pb-10 sm:pb-14 overflow-hidden bg-[#041126]">
+    <section className="relative min-h-[92vh] lg:min-h-[94vh] flex flex-col justify-between pt-[106px] sm:pt-[112px] lg:pt-36 pb-10 sm:pb-14 overflow-hidden bg-[#041126]">
       {/* Animated Orbital Satellite & Earth Video-Motion Background */}
       <HeroAnimatedBackground />
 
       {/* Unobstructed Mobile/Tablet Orbital Sky + Golden Sunrise Stage so Satellite, Sunlight & Earth Horizon Shine Clearly Above Copy */}
       <div
-        className="h-[232px] sm:h-[268px] lg:hidden w-full flex-shrink-0 pointer-events-none"
+        className="h-[234px] sm:h-[268px] lg:hidden w-full flex-shrink-0 pointer-events-none"
         aria-hidden="true"
       />
 

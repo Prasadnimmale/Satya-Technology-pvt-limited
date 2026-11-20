@@ -36,9 +36,10 @@ export default function ContactCTA() {
                 </Link>
                 <Link
                   href="/solutions"
-                  className="inline-flex items-center justify-center gap-2 px-6 py-3.5 sm:py-4 rounded-xl bg-[#071B38]/85 hover:bg-[#0B2852] border border-[#A9DCEB]/35 text-white font-semibold text-sm sm:text-base transition-all"
+                  className="inline-flex items-center justify-center gap-2 px-6 py-3.5 sm:py-4 rounded-xl bg-[#071B38]/85 hover:bg-[#0B2852] border border-[#A9DCEB]/35 hover:border-[#D8C64B]/65 text-white font-semibold text-sm sm:text-base transition-all sm:hover:-translate-y-0.5"
                 >
                   Browse All Solutions
+                  <ArrowRight className="w-4 h-4 sm:w-5 sm:h-5 text-[#D8C64B]" />
                 </Link>
               </div>
             </div>

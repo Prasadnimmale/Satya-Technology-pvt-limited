@@ -40,7 +40,7 @@ vec2 screenToRawImageUV(vec2 suv) {
     float spanU = 0.60;
     float spanV = spanU * IMG_ASPECT / screenAspect;
     float ux = suv.x * spanU + 0.03;
-    float uy = (suv.y - 0.285) * spanV + 0.385;
+    float uy = (suv.y - 0.315) * spanV + 0.385;
     return vec2(ux, uy);
   }
   vec2 uv = suv;
@@ -368,13 +368,13 @@ export default function HeroAnimatedBackground() {
 
         // Natural orbital trajectory arc matching the angled satellite
         const o1 = isMobile
-          ? { x: width * 0.03, y: width < 640 ? 108 : 122 }
+          ? { x: width * 0.03, y: width < 640 ? 136 : 150 }
           : imageUVToScreen(0.18, 0.04, false);
         const oc = isMobile
-          ? { x: width * 0.53, y: width < 640 ? 154 : 174 }
+          ? { x: width * 0.53, y: width < 640 ? 182 : 202 }
           : imageUVToScreen(0.6, 0.3, false);
         const o2 = isMobile
-          ? { x: width * 0.98, y: width < 640 ? 228 : 258 }
+          ? { x: width * 0.98, y: width < 640 ? 256 : 286 }
           : imageUVToScreen(0.99, 0.68, false);
 
         ctx2d.save();
@@ -409,7 +409,7 @@ export default function HeroAnimatedBackground() {
           ? width * 0.52 + satOrbitX
           : desktopSatPivot.x + satOrbitX;
         const satCenterY = isMobile
-          ? (width < 640 ? 152 : 176) + satOrbitY
+          ? (width < 640 ? 180 : 204) + satOrbitY
           : desktopSatPivot.y + satOrbitY;
 
         // Exact parabolic dish feedhorn tip (0.556, 0.494) in 1920x1080 space
@@ -583,9 +583,9 @@ export default function HeroAnimatedBackground() {
             fetchPriority="high"
             loading="eager"
             decoding="sync"
-            className="absolute top-[152px] sm:top-[172px] -left-[5%] w-[166.7%] max-w-none h-auto"
+            className="absolute top-[180px] sm:top-[200px] -left-[5%] w-[166.7%] max-w-none h-auto"
           />
-          <div className="absolute inset-x-0 top-[148px] sm:top-[168px] h-14 bg-gradient-to-b from-[#030916] to-transparent" />
+          <div className="absolute inset-x-0 top-[176px] sm:top-[196px] h-14 bg-gradient-to-b from-[#030916] to-transparent" />
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src="/images/hero-v2-satellite.webp"
@@ -593,7 +593,7 @@ export default function HeroAnimatedBackground() {
             fetchPriority="high"
             loading="eager"
             decoding="sync"
-            className="absolute top-[74px] sm:top-[84px] left-[52%] -translate-x-1/2 w-[84vw] max-w-[440px] h-auto object-contain"
+            className="absolute top-[102px] sm:top-[112px] left-[52%] -translate-x-1/2 w-[84vw] max-w-[440px] h-auto object-contain"
           />
         </div>
       </div>
@@ -630,7 +630,7 @@ export default function HeroAnimatedBackground() {
         className="lg:hidden absolute inset-0"
         style={{
           background:
-            "linear-gradient(180deg, rgba(4, 17, 38, 0.18) 0px, rgba(4, 17, 38, 0.0) 90px, rgba(4, 17, 38, 0.0) 325px, rgba(6, 22, 48, 0.58) 390px, rgba(7, 27, 56, 0.62) 78%, rgba(11, 40, 82, 0.94) 100%)",
+            "linear-gradient(180deg, rgba(4, 17, 38, 0.18) 0px, rgba(4, 17, 38, 0.0) 116px, rgba(4, 17, 38, 0.0) 352px, rgba(6, 22, 48, 0.58) 418px, rgba(7, 27, 56, 0.62) 78%, rgba(11, 40, 82, 0.94) 100%)",
         }}
       />
 
