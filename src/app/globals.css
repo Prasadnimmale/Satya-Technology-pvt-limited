@@ -27,6 +27,8 @@ html {
   scroll-behavior: smooth;
   background-color: #0B2852;
   color: #FFFFFF;
+  max-width: 100%;
+  overflow-x: clip;
 }
 
 body {
@@ -37,7 +39,8 @@ body {
   font-weight: 400;
   font-style: normal;
   font-variation-settings: "GRAD" 0;
-  overflow-x: hidden;
+  max-width: 100%;
+  overflow-x: clip;
 }
 
 h1, h2, h3, h4, h5, h6, nav, button, a, p, span, li, input, textarea, select {
